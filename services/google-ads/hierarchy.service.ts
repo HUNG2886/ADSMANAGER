@@ -1,6 +1,7 @@
 import { GoogleAdsClient, normalizeCustomerId } from './client';
 import { CustomerService, type GoogleCustomer, type GoogleCustomerClient } from './customer.service';
 import { MccService } from './mcc.service';
+import { logGoogleAds } from './safe-logger';
 
 export type HierarchyMcc = {
   customerId: string;
@@ -39,11 +40,14 @@ export class HierarchyService {
   async discover() {
     const baseClient = new GoogleAdsClient({ accessToken: this.accessToken, developerToken: this.developerToken });
     const resourceNames = await new MccService(baseClient).listAccessibleCustomers();
+    const accessibleCustomerIds=(resourceNames.resourceNames??[]).map(normalizeCustomerId).filter(Boolean);
+    logGoogleAds('accessible_customers_listed',{accessibleCustomerIds});
     const mccs: HierarchyMcc[] = [];
     const accounts: HierarchyAccount[] = [];
 
     for (const resourceName of resourceNames.resourceNames ?? []) {
       const rootId = normalizeCustomerId(resourceName);
+      logGoogleAds('accessible_customer_probe',{clientCustomerId:rootId,loginCustomerId:null});
       const root = await new CustomerService(baseClient).getCustomer(rootId);
       if (!root) continue;
 
@@ -64,11 +68,13 @@ export class HierarchyService {
         if (visited.has(manager.customerId)) continue;
         visited.add(manager.customerId);
         const managerClient = new GoogleAdsClient({ accessToken: this.accessToken, developerToken: this.developerToken, loginCustomerId: rootId });
+        logGoogleAds('hierarchy_manager_query',{mccCustomerId:manager.customerId,clientCustomerId:manager.customerId,loginCustomerId:rootId});
         const children = await new CustomerService(managerClient).listImmediateClients(manager.customerId);
         for (const child of children) {
           const childId = normalizeCustomerId(String(child.id || child.clientCustomer || ''));
           if (!childId || childId === manager.customerId || Number(child.level ?? 0) !== 1) continue;
           const item = snapshot(child, childId, { parentCustomerId: manager.customerId, loginCustomerId: rootId, level: manager.level + 1 });
+          logGoogleAds('hierarchy_child_discovered',{mccCustomerId:manager.customerId,clientCustomerId:childId,loginCustomerId:rootId});
           if (item.manager) {
             mccs.push(item);
             queue.push(item);
@@ -80,6 +86,7 @@ export class HierarchyService {
     }
 
     return {
+      accessibleCustomerIds,
       mccs: [...new Map(mccs.map(item => [item.customerId, item])).values()],
       accounts: [...new Map(accounts.map(item => [`${item.parentManagerCustomerId}:${item.customerId}`, item])).values()],
     };

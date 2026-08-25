@@ -1,4 +1,5 @@
-import { friendlyGoogleAdsError } from './errors';
+import { parseGoogleAdsError } from './errors';
+import { logGoogleAds } from './safe-logger';
 
 export const GOOGLE_ADS_API_VERSION = process.env.GOOGLE_ADS_API_VERSION || 'v25';
 
@@ -20,7 +21,9 @@ export class GoogleAdsClient {
         await new Promise(resolve => setTimeout(resolve, Math.min(8000, 500 * 2 ** attempt + Math.random() * 250)));
         return this.request<T>(path, init, attempt + 1);
       }
-      throw friendlyGoogleAdsError(response.status, payload, response.headers.get('request-id'));
+      const error=parseGoogleAdsError(response.status,payload,response.headers.get('request-id'));
+      logGoogleAds('api_request_failed',{requestPath:path,loginCustomerId:this.options.loginCustomerId,apiVersion:GOOGLE_ADS_API_VERSION,error},'error');
+      throw error;
     }
     return payload as T;
   }

@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { canAccessAccount } from '@/lib/data-access';
 import { formatCustomerId,formatMoney,formatNumber } from '@/lib/google-ads-format';
 import { prisma } from '@/lib/prisma';
-import { googleAdsConfigStatus,syncGoogleAdsAccount } from '@/services/google-ads';
+import { formatGoogleAdsError,GoogleAdsError,googleAdsConfigStatus,syncGoogleAdsAccount } from '@/services/google-ads';
 import { AccountRefreshButton } from '../../account-refresh-button';
 import { CampaignActions } from '../../campaign-actions';
 
@@ -12,7 +12,7 @@ export default async function AccountDetailPage({params}:{params:Promise<{id:str
   const user=await getCurrentUser();const{id}=await params;if(!user)redirect(`/login?returnTo=/google-ads/accounts/${id}`);if(!await canAccessAccount(user,id))redirect('/403');
   let account=await prisma.customerAccount.findUnique({where:{id},include:{mcc:{include:{connection:{select:{googleEmail:true,status:true}}}},_count:{select:{campaigns:true}}}});if(!account)redirect('/google-ads/accounts');
   let syncError='';const stale=!account.lastSyncAt;
-  if(stale&&googleAdsConfigStatus().configured&&account.mcc.connection.status==='CONNECTED')try{await syncGoogleAdsAccount(account.id);account=await prisma.customerAccount.findUnique({where:{id},include:{mcc:{include:{connection:{select:{googleEmail:true,status:true}}}},_count:{select:{campaigns:true}}}})||account}catch(error){syncError=error instanceof Error?error.message:'Không thể đọc Google Ads.'}
+  if(stale&&googleAdsConfigStatus().configured&&account.mcc.connection.status==='CONNECTED')try{await syncGoogleAdsAccount(account.id);account=await prisma.customerAccount.findUnique({where:{id},include:{mcc:{include:{connection:{select:{googleEmail:true,status:true}}}},_count:{select:{campaigns:true}}}})||account}catch(error){syncError=error instanceof GoogleAdsError?formatGoogleAdsError(error):error instanceof Error?error.message:'Không thể đọc Google Ads.'}
   const[campaigns,totals,campaignTotals]=await Promise.all([
     prisma.campaign.findMany({where:{customerAccountId:id},orderBy:{name:'asc'}}),
     prisma.dailyMetric.aggregate({where:{customerAccountId:id},_sum:{cost:true,clicks:true,impressions:true,conversions:true},_avg:{averageCpc:true,ctr:true}}),

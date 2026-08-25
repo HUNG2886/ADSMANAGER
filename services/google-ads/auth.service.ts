@@ -1,4 +1,5 @@
 import { GoogleAdsError } from './errors';
+import { logGoogleAds } from './safe-logger';
 
 const REQUIRED_GOOGLE_ADS_ENV = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_DEVELOPER_TOKEN', 'ENCRYPTION_KEY'] as const;
 
@@ -45,10 +46,11 @@ async function tokenRequest(body: URLSearchParams) {
     body,
     cache: 'no-store',
   });
-  const payload = await response.json().catch(() => ({})) as GoogleOAuthToken & { error?: string };
+  const payload = await response.json().catch(() => ({})) as GoogleOAuthToken & { error?: string;error_description?:string };
   if (!response.ok) {
     const expired = payload.error === 'invalid_grant';
-    throw new GoogleAdsError(expired ? 'CONNECTION_EXPIRED' : 'OAUTH_EXCHANGE_FAILED', expired ? 'Kết nối Google đã hết hạn. Vui lòng đăng nhập lại Google Ads.' : 'Không thể hoàn tất xác thực Google.', expired ? 401 : 400);
+    const error=new GoogleAdsError(expired?'CONNECTION_EXPIRED':payload.error||'OAUTH_EXCHANGE_FAILED',payload.error_description|| (expired?'Kết nối Google đã hết hạn. Vui lòng đăng nhập lại Google Ads.':'Không thể hoàn tất xác thực Google.'),expired?401:400,null,'OAUTH_ERROR');
+    logGoogleAds('oauth_token_request_failed',{oauthResult:'failure',error},'error');throw error;
   }
   return payload;
 }

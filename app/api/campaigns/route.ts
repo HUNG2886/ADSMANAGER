@@ -4,7 +4,7 @@ import { writeAudit } from '@/lib/audit';
 import { prisma } from '@/lib/prisma';
 import { PERMISSIONS } from '@/lib/permissions';
 import { requirePermission } from '@/lib/rbac';
-import { BudgetService,CampaignService,GoogleAdsError,googleAdsClientForConnection } from '@/services/google-ads';
+import { BudgetService,CampaignService,googleAdsErrorDetails,GoogleAdsError,googleAdsClientForConnection,logGoogleAds } from '@/services/google-ads';
 
 const schema=z.union([
   z.object({id:z.string().min(1),action:z.literal('STATUS').optional(),status:z.enum(['ENABLED','PAUSED'])}),
@@ -17,6 +17,7 @@ export async function PATCH(request:Request){
   const campaign=await prisma.campaign.findUnique({where:{id:parsed.data.id},include:{customerAccount:{include:{mcc:true}}}});if(!campaign)return fail('NOT_FOUND','Không tìm thấy chiến dịch.',404);
   try{
     const login=campaign.customerAccount.mcc.manager?campaign.customerAccount.loginCustomerId:undefined;
+    logGoogleAds('campaign_mutation_requested',{mccCustomerId:campaign.customerAccount.mcc.customerId,clientCustomerId:campaign.customerAccount.customerId,loginCustomerId:login});
     const{client}=await googleAdsClientForConnection(campaign.customerAccount.mcc.connectionId,login);
     if(parsed.data.action==='BUDGET'){
       if(!campaign.budgetId)return fail('BUDGET_NOT_FOUND','Chiến dịch chưa có ngân sách có thể cập nhật.',409);
@@ -29,5 +30,5 @@ export async function PATCH(request:Request){
     await prisma.campaign.update({where:{id:campaign.id},data:{status:parsed.data.status}});
     await writeAudit({userId:access.user.id,userEmail:access.user.email,userName:access.user.name,action:parsed.data.status==='PAUSED'?'CAMPAIGN_PAUSED':'CAMPAIGN_ENABLED',entityType:'Campaign',entityId:campaign.id,metadata:{status:parsed.data.status},ipAddress:requestIp(request)});
     return ok({id:campaign.id,status:parsed.data.status});
-  }catch(error){return error instanceof GoogleAdsError?fail(error.code,error.message,error.status>=500?503:error.status):fail('GOOGLE_ADS_API_ERROR','Không thể cập nhật Google Ads lúc này.',502)}
+  }catch(error){if(error instanceof GoogleAdsError){const details=googleAdsErrorDetails(error);return fail(details.code,details.message,error.status>=500?503:error.status,{type:details.type,requestId:details.requestId,rootStatus:details.rootStatus})}return fail('GOOGLE_ADS_API_ERROR','Không thể cập nhật Google Ads lúc này.',502)}
 }

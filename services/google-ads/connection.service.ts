@@ -1,14 +1,15 @@
 import { decryptSecret, encryptSecret } from '../../lib/encryption';
 import { prisma } from '../../lib/prisma';
 import { GoogleAdsClient } from './client';
-import { GoogleAdsError } from './errors';
+import { formatGoogleAdsError,GoogleAdsError } from './errors';
 import { googleAdsConfigStatus, refreshGoogleAccessToken, revokeGoogleToken, type GoogleOAuthToken } from './auth.service';
 import { HierarchyService } from './hierarchy.service';
+import { logGoogleAds } from './safe-logger';
 
 function developerToken() {
   const status = googleAdsConfigStatus();
   if (!status.configured) throw new GoogleAdsError('OAUTH_NOT_CONFIGURED', `Thiếu cấu hình: ${status.missing.join(', ')}.`, 503);
-  return process.env.GOOGLE_DEVELOPER_TOKEN!;
+  return process.env.GOOGLE_DEVELOPER_TOKEN!.trim();
 }
 
 export async function upsertGoogleConnection(input: { userId: string; googleEmail: string; token: GoogleOAuthToken }) {
@@ -19,7 +20,7 @@ export async function upsertGoogleConnection(input: { userId: string; googleEmai
     : current?.refreshTokenEncrypted;
   if (!refreshTokenEncrypted) throw new GoogleAdsError('REFRESH_TOKEN_MISSING', 'Google không trả về refresh token. Hãy thu hồi quyền ứng dụng và kết nối lại.', 400);
 
-  return prisma.googleConnection.upsert({
+  const connection=await prisma.googleConnection.upsert({
     where: { userId_googleEmail: { userId: input.userId, googleEmail } },
     create: {
       userId: input.userId,
@@ -40,14 +41,16 @@ export async function upsertGoogleConnection(input: { userId: string; googleEmai
       lastError: null,
     },
   });
+  logGoogleAds('oauth_connection_stored',{connectionId:connection.id,googleEmail,oauthResult:'success'});
+  return connection;
 }
 
-export async function connectionAccessToken(connectionId: string) {
+export async function connectionAccessToken(connectionId:string,forceRefresh=false) {
   const connection = await prisma.googleConnection.findUnique({ where: { id: connectionId } });
   if (!connection || connection.status === 'DISCONNECTED') throw new GoogleAdsError('CONNECTION_REQUIRED', 'Kết nối Google Ads không còn hoạt động.', 409);
   if (connection.status === 'REAUTH_REQUIRED' || !connection.refreshTokenEncrypted) throw new GoogleAdsError('CONNECTION_EXPIRED', 'Kết nối Google đã hết hạn. Vui lòng đăng nhập lại Google Ads.', 401);
 
-  if (connection.accessTokenEncrypted && connection.expiresAt && connection.expiresAt.getTime() > Date.now() + 60_000) {
+  if (!forceRefresh&&connection.accessTokenEncrypted && connection.expiresAt && connection.expiresAt.getTime() > Date.now() + 60_000) {
     return { connection, accessToken: await decryptSecret(connection.accessTokenEncrypted) };
   }
 
@@ -63,12 +66,13 @@ export async function connectionAccessToken(connectionId: string) {
         lastError: null,
       },
     });
+    logGoogleAds('oauth_token_refreshed',{connectionId:connection.id,googleEmail:connection.googleEmail,tokenRefresh:'success'});
     return { connection: updated, accessToken: refreshed.access_token };
   } catch (error) {
     if (error instanceof GoogleAdsError && error.code === 'CONNECTION_EXPIRED') {
       await prisma.googleConnection.update({ where: { id: connection.id }, data: { status: 'REAUTH_REQUIRED', accessTokenEncrypted: null, expiresAt: null, lastError: error.message } });
     }
-    throw error;
+    logGoogleAds('oauth_token_refresh_failed',{connectionId:connection.id,googleEmail:connection.googleEmail,tokenRefresh:'failure',error:error instanceof GoogleAdsError?error:undefined},'error');throw error;
   }
 }
 
@@ -125,9 +129,10 @@ export async function syncGoogleConnection(connectionId: string) {
     }
 
     await prisma.googleConnection.update({ where: { id: connectionId }, data: { status: 'CONNECTED', lastSyncAt: new Date(), lastError: null } });
+    logGoogleAds('connection_hierarchy_synced',{connectionId,googleEmail:connection.googleEmail,accessibleCustomerIds:hierarchy.accessibleCustomerIds});
     return { mccCount: hierarchy.mccs.filter(item => item.manager).length, accountCount: hierarchy.accounts.length };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Không thể đồng bộ Google Ads.';
+    const message = error instanceof GoogleAdsError?formatGoogleAdsError(error):error instanceof Error ? error.message : 'Không thể đồng bộ Google Ads.';
     await prisma.googleConnection.update({ where: { id: connectionId }, data: { lastError: message.slice(0, 500) } }).catch(() => null);
     throw error;
   }

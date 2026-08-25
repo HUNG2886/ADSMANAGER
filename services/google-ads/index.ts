@@ -9,3 +9,5 @@ export * from './campaign.service';
 export * from './metrics.service';
 export * from './budget.service';
 export * from './errors';
+export * from './diagnostics.service';
+export * from './safe-logger';
