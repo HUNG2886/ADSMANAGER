@@ -1,0 +1,2 @@
+import { GoogleAdsClient, normalizeCustomerId } from './client';
+export class CustomerService { constructor(private client: GoogleAdsClient) {} async getCustomer(customerId: string) { const id=normalizeCustomerId(customerId); return this.client.request(`/customers/${id}/googleAds:search`, { method:'POST', body:JSON.stringify({ query:'SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.status, customer.manager FROM customer LIMIT 1' }) }); } }

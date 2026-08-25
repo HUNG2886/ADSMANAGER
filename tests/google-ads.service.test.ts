@@ -1,0 +1,6 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'; import { GoogleAdsClient } from '../services/google-ads/client'; import { GoogleAdsError } from '../services/google-ads/errors';
+afterEach(()=>vi.restoreAllMocks());
+describe('GoogleAdsClient',()=>{
+  it('sends required headers and returns data',async()=>{const fetchMock=vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({resourceNames:['customers/1']}),{status:200,headers:{'content-type':'application/json'}}));const client=new GoogleAdsClient({accessToken:'secret',developerToken:'developer',loginCustomerId:'123-456-7890'});await expect(client.request('/customers:listAccessibleCustomers')).resolves.toEqual({resourceNames:['customers/1']});const headers=(fetchMock.mock.calls[0][1]?.headers as Headers);expect(headers.get('authorization')).toBe('Bearer secret');expect(headers.get('login-customer-id')).toBe('1234567890')});
+  it('maps permission errors to a friendly error',async()=>{vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({error:'denied'}),{status:403}));const client=new GoogleAdsClient({accessToken:'x',developerToken:'y'});await expect(client.request('/customers/1')).rejects.toMatchObject<Partial<GoogleAdsError>>({code:'PERMISSION_DENIED',status:403})});
+});

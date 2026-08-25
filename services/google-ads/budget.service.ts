@@ -1,0 +1,2 @@
+import { GoogleAdsClient, normalizeCustomerId } from './client';
+export class BudgetService { constructor(private client:GoogleAdsClient){} async update(customerId:string,budgetId:string,amountMicros:number){const id=normalizeCustomerId(customerId);return this.client.request(`/customers/${id}/campaignBudgets:mutate`,{method:'POST',body:JSON.stringify({operations:[{update:{resourceName:`customers/${id}/campaignBudgets/${budgetId}`,amountMicros:String(amountMicros)},updateMask:'amount_micros'}]})});} }

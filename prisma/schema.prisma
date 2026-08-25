@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  ENABLED
+  SUSPENDED
+  CANCELED
+  CLOSED
+  UNKNOWN
+}
+
+enum CampaignStatus {
+  ENABLED
+  PAUSED
+  REMOVED
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
+enum SyncJobType {
+  SYNC_MCC
+  SYNC_CUSTOMER_ACCOUNT
+  SYNC_CAMPAIGNS
+  SYNC_AD_GROUPS
+  SYNC_KEYWORDS
+  SYNC_METRICS
+  EXPORT_DATA
+  BULK_ACTION
+}
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  name String?
+  image String?
+  role Role @default(USER)
+  connections GoogleConnection[]
+  mccs MCC[]
+  auditLogs AuditLog[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GoogleConnection {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  googleEmail String
+  refreshTokenEncrypted String
+  accessTokenEncrypted String?
+  expiresAt DateTime?
+  mccs MCC[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+}
+
+model MCC {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectionId String
+  connection GoogleConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  customerId String
+  name String
+  currency String?
+  timezone String?
+  status String
+  lastSyncAt DateTime?
+  accounts CustomerAccount[]
+  syncJobs SyncJob[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId, customerId])
+  @@index([userId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model CustomerAccount {
+  id String @id @default(cuid())
+  mccId String
+  mcc MCC @relation(fields: [mccId], references: [id], onDelete: Cascade)
+  customerId String
+  name String
+  currency String?
+  timezone String?
+  status AccountStatus @default(UNKNOWN)
+  lastSyncAt DateTime?
+  campaigns Campaign[]
+  metrics DailyMetric[]
+  syncJobs SyncJob[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([mccId, customerId])
+  @@index([mccId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model Campaign {
+  id String @id @default(cuid())
+  customerAccountId String
+  customerAccount CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  campaignId String
+  name String
+  status CampaignStatus
+  type String
+  budget Decimal @db.Decimal(20, 2)
+  metrics DailyMetric[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([customerAccountId, campaignId])
+  @@index([customerAccountId])
+  @@index([campaignId])
+  @@index([status])
+}
+
+model DailyMetric {
+  id String @id @default(cuid())
+  customerAccountId String
+  customerAccount CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  campaignId String?
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  date DateTime @db.Date
+  impressions BigInt
+  clicks BigInt
+  cost Decimal @db.Decimal(20, 2)
+  conversions Decimal @db.Decimal(20, 4)
+  conversionValue Decimal @db.Decimal(20, 2)
+  ctr Decimal @db.Decimal(10, 6)
+  averageCpc Decimal @db.Decimal(20, 2)
+  @@unique([customerAccountId, campaignId, date])
+  @@index([customerAccountId, date])
+  @@index([campaignId, date])
+  @@index([date])
+}
+
+model SyncJob {
+  id String @id @default(cuid())
+  type SyncJobType
+  status JobStatus @default(PENDING)
+  mccId String?
+  mcc MCC? @relation(fields: [mccId], references: [id], onDelete: SetNull)
+  customerAccountId String?
+  customerAccount CustomerAccount? @relation(fields: [customerAccountId], references: [id], onDelete: SetNull)
+  progress Int @default(0)
+  startedAt DateTime?
+  completedAt DateTime?
+  error String?
+  createdAt DateTime @default(now())
+  @@index([status, createdAt])
+  @@index([mccId])
+  @@index([customerAccountId])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action String
+  entityType String
+  entityId String
+  metadata Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action])
+}
