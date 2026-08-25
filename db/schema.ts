@@ -1,7 +1,7 @@
 import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
-  id: text('id').primaryKey(), email: text('email').notNull(), name: text('name'), image: text('image'), role: text('role').notNull().default('USER'), createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(), updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  id: text('id').primaryKey(), email: text('email').notNull(), name: text('name'), image: text('image'), passwordHash: text('password_hash'), role: text('role').notNull().default('COLLABORATOR'), isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true), lastLoginAt: integer('last_login_at', { mode: 'timestamp_ms' }), createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(), updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 }, table => [uniqueIndex('idx_users_email').on(table.email)]);
 
 export const googleConnections = sqliteTable('google_connections', {

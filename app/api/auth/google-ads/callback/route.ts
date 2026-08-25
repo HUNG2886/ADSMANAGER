@@ -7,6 +7,7 @@ import { prisma } from '../../../../../lib/prisma';
 export async function GET(request: Request) {
   const url = new URL(request.url); const user = await apiUser();
   if (!user || user.demo) return fail('AUTH_REQUIRED', 'Phiên đăng nhập không hợp lệ.', 401);
+  if (user.role !== 'ADMIN') return fail('FORBIDDEN', 'Chỉ quản trị viên được kết nối tài khoản Google Ads.', 403);
   const cookieState = request.headers.get('cookie')?.split(';').map(x=>x.trim()).find(x=>x.startsWith('google_ads_oauth_state='))?.split('=')[1];
   const state = url.searchParams.get('state'); const code = url.searchParams.get('code');
   if (!state || state !== cookieState || !code) return fail('OAUTH_STATE_INVALID', 'Yêu cầu OAuth không hợp lệ hoặc đã hết hạn.', 400);

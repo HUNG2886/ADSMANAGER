@@ -1,19 +1,20 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Activity, BarChart3, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign, Download, FileClock, Gauge, KeyRound, Layers3, LayoutDashboard, Menu, Network, Pause, Play, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Users, X, Zap } from 'lucide-react';
+import { Activity, BarChart3, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign, Download, FileClock, Gauge, KeyRound, Layers3, LayoutDashboard, LogOut, Menu, Network, Pause, Play, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, UserPlus, Users, X, Zap } from 'lucide-react';
 import { accounts as initialAccounts, auditLogs, campaigns as sourceCampaigns, formatVnd, jobs, mccs, metrics, type CampaignStatus } from '../lib/demo-data';
 
-type Section = 'overview' | 'mcc' | 'accounts' | 'campaigns' | 'analytics' | 'jobs' | 'audit' | 'settings';
+type Section = 'overview' | 'mcc' | 'accounts' | 'campaigns' | 'analytics' | 'jobs' | 'team' | 'audit' | 'settings';
 type Campaign = typeof sourceCampaigns[number];
+type DashboardUser = { id: string; name: string; email: string; role: 'ADMIN' | 'COLLABORATOR' };
 
-const navGroups: { label: string; items: { id: Section; label: string; icon: typeof LayoutDashboard; badge?: string }[] }[] = [
+const navGroups: { label: string; items: { id: Section; label: string; icon: typeof LayoutDashboard; badge?: string; adminOnly?: boolean }[] }[] = [
   { label: 'KHÔNG GIAN LÀM VIỆC', items: [
     { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard }, { id: 'mcc', label: 'Tài khoản MCC', icon: Network, badge: '4' }, { id: 'accounts', label: 'Google Ads', icon: Layers3 }, { id: 'campaigns', label: 'Chiến dịch', icon: Zap }, { id: 'analytics', label: 'Phân tích', icon: BarChart3 },
   ]},
   { label: 'VẬN HÀNH', items: [
-    { id: 'jobs', label: 'Tiến trình đồng bộ', icon: RefreshCw, badge: '3' }, { id: 'audit', label: 'Nhật ký hoạt động', icon: FileClock }, { id: 'settings', label: 'Cài đặt', icon: Settings },
+    { id: 'jobs', label: 'Tiến trình đồng bộ', icon: RefreshCw, badge: '3' }, { id: 'team', label: 'Thành viên', icon: Users, adminOnly: true }, { id: 'audit', label: 'Nhật ký hoạt động', icon: FileClock, adminOnly: true }, { id: 'settings', label: 'Cài đặt', icon: Settings, adminOnly: true },
   ]},
 ];
 
@@ -24,11 +25,12 @@ const sectionTitles: Record<Section, [string, string]> = {
   campaigns: ['Chiến dịch', 'Quản lý trạng thái, ngân sách và hiệu suất.'],
   analytics: ['Phân tích', 'So sánh hiệu suất và phát hiện xu hướng.'],
   jobs: ['Tiến trình đồng bộ', 'Giám sát queue, retry và trạng thái xử lý nền.'],
+  team: ['Thành viên & phân quyền', 'Cấp tài khoản và kiểm soát quyền truy cập hệ thống.'],
   audit: ['Nhật ký hoạt động', 'Lịch sử bất biến của các thao tác quan trọng.'],
   settings: ['Cài đặt', 'Quản lý kết nối, đồng bộ và chính sách bảo mật.'],
 };
 
-export function DashboardApp({ user }: { user: { name: string; email: string } | null }) {
+export function DashboardApp({ user }: { user: DashboardUser }) {
   const [section, setSection] = useState<Section>('overview');
   const [mobileNav, setMobileNav] = useState(false);
   const [search, setSearch] = useState('');
@@ -55,9 +57,10 @@ export function DashboardApp({ user }: { user: { name: string; email: string } |
   }, [search, campaigns]);
 
   const filteredAccounts = initialAccounts.filter(item => item.name.toLowerCase().includes(accountFilter.toLowerCase()) && (statusFilter === 'ALL' || item.status === statusFilter));
-  const initials = (user?.name || 'Demo User').split(' ').slice(-2).map(x => x[0]).join('').toUpperCase();
+  const initials = user.name.split(' ').slice(-2).map(x => x[0]).join('').toUpperCase();
 
   function navigate(next: Section) { setSection(next); setMobileNav(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  async function logout() { await fetch('/api/auth/logout', { method: 'POST' }); window.location.assign('/login'); }
   function exportCsv() {
     const rows = [['Account','Customer ID','Status','Spend','Clicks','Conversions'], ...initialAccounts.map(a => [a.name,a.customerId,a.status,a.spend,a.clicks,a.conversions])];
     const blob = new Blob(['\ufeff' + rows.map(row => row.join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -79,7 +82,7 @@ export function DashboardApp({ user }: { user: { name: string; email: string } |
     {mobileNav && <button className="nav-backdrop" onClick={() => setMobileNav(false)} aria-label="Đóng menu" />}
     <aside className={`sidebar ${mobileNav ? 'open' : ''}`}>
       <div className="brand"><span className="brand-mark">A</span><span>Ads Manager <b>Pro</b></span><button className="close-nav" onClick={() => setMobileNav(false)} aria-label="Đóng"><X size={18}/></button></div>
-      <nav>{navGroups.map(group => <div key={group.label}><p className="nav-label">{group.label}</p>{group.items.map(item => <button key={item.id} className={`nav-item ${section === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}><item.icon size={16}/><span>{item.label}</span>{item.badge && <i>{item.badge}</i>}</button>)}</div>)}</nav>
+      <nav>{navGroups.map(group => <div key={group.label}><p className="nav-label">{group.label}</p>{group.items.filter(item => !item.adminOnly || user.role === 'ADMIN').map(item => <button key={item.id} className={`nav-item ${section === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}><item.icon size={16}/><span>{item.label}</span>{item.badge && <i>{item.badge}</i>}</button>)}</div>)}</nav>
       <div className="sync-card"><div><span className="pulse"/> Hệ thống ổn định</div><p>Đồng bộ gần nhất</p><strong>2 phút trước</strong></div>
     </aside>
 
@@ -87,19 +90,20 @@ export function DashboardApp({ user }: { user: { name: string; email: string } |
       <header className="topbar">
         <button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20}/></button>
         <div className="global-search"><Search size={15}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm MCC, tài khoản, chiến dịch..." aria-label="Tìm kiếm toàn cục"/><kbd>⌘ K</kbd>{searchResults.length > 0 && <div className="search-results">{searchResults.map(result => <button key={`${result.type}-${result.id}`} onClick={() => { navigate(result.section); setSearch(''); }}><span>{result.type.slice(0,1)}</span><div><strong>{result.title}</strong><small>{result.type} · {result.subtitle}</small></div><ChevronRight size={14}/></button>)}</div>}</div>
-        <div className="top-actions"><button className="icon-btn" aria-label="Thông báo"><Bell size={18}/><span/></button><div className="user"><span>{initials}</span><div><strong>{user?.name || 'Hùng Nguyễn'}</strong><small>{user ? 'Quản trị viên' : 'Chế độ demo'}</small></div><ChevronDown size={13}/></div></div>
+        <div className="top-actions"><button className="icon-btn" aria-label="Thông báo"><Bell size={18}/><span/></button><div className="user"><span>{initials}</span><div><strong>{user.name}</strong><small>{user.role === 'ADMIN' ? 'Quản trị viên' : 'Cộng tác viên'}</small></div></div><button className="logout-btn" onClick={logout} aria-label="Đăng xuất" title="Đăng xuất"><LogOut size={16}/></button></div>
       </header>
 
       <div className="content">
-        <div className="page-heading"><div><p className="eyebrow">ADS MANAGER PRO</p><h1>{sectionTitles[section][0]}</h1><p>{sectionTitles[section][1]}</p></div><div className="heading-actions"><label className="date-select"><CalendarDays size={14}/><select value={range} onChange={e => setRange(e.target.value)}><option>Hôm nay</option><option>7 ngày qua</option><option>14 ngày qua</option><option>30 ngày qua</option><option>Tháng này</option></select><ChevronDown size={12}/></label>{section === 'mcc' ? <button className="primary-btn" onClick={()=>{window.location.href='/api/auth/google-ads'}}><Plus size={14}/> Kết nối MCC</button> : <button className="secondary-btn" onClick={exportCsv}><Download size={14}/> Xuất dữ liệu</button>}</div></div>
+        <div className="page-heading"><div><p className="eyebrow">ADS MANAGER PRO</p><h1>{sectionTitles[section][0]}</h1><p>{sectionTitles[section][1]}</p></div><div className="heading-actions"><label className="date-select"><CalendarDays size={14}/><select value={range} onChange={e => setRange(e.target.value)}><option>Hôm nay</option><option>7 ngày qua</option><option>14 ngày qua</option><option>30 ngày qua</option><option>Tháng này</option></select><ChevronDown size={12}/></label>{section === 'mcc' && user.role === 'ADMIN' ? <button className="primary-btn" onClick={()=>{window.location.href='/api/auth/google-ads'}}><Plus size={14}/> Kết nối MCC</button> : <button className="secondary-btn" onClick={exportCsv}><Download size={14}/> Xuất dữ liệu</button>}</div></div>
         {section === 'overview' && <Overview onNavigate={navigate}/>} 
         {section === 'mcc' && <MccView expanded={expandedMcc} setExpanded={setExpandedMcc}/>} 
         {section === 'accounts' && <AccountsView accounts={filteredAccounts} filter={accountFilter} setFilter={setAccountFilter} status={statusFilter} setStatus={setStatusFilter} selected={selected} setSelected={setSelected} notify={setToast}/>} 
         {section === 'campaigns' && <CampaignsView campaigns={campaigns} setConfirm={setConfirm}/>} 
         {section === 'analytics' && <AnalyticsView/>} 
         {section === 'jobs' && <JobsView/>} 
-        {section === 'audit' && <AuditView/>} 
-        {section === 'settings' && <SettingsView user={user} enabled={syncEnabled} setEnabled={setSyncEnabled}/>} 
+        {section === 'team' && user.role === 'ADMIN' && <TeamView currentUser={user}/>}
+        {section === 'audit' && user.role === 'ADMIN' && <AuditView/>}
+        {section === 'settings' && user.role === 'ADMIN' && <SettingsView user={user} enabled={syncEnabled} setEnabled={setSyncEnabled}/>}
       </div>
     </section>
     {confirm && <div className="modal-backdrop" role="presentation"><div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><button className="modal-close" onClick={() => setConfirm(null)}><X size={17}/></button><span className={`modal-icon ${confirm.next === 'PAUSED' ? 'pause' : ''}`}>{confirm.next === 'PAUSED' ? <Pause size={21}/> : <Play size={21}/>}</span><h2 id="confirm-title">{confirm.next === 'PAUSED' ? 'Tạm dừng' : 'Bật'} chiến dịch?</h2><p>Thao tác này sẽ được gửi tới Google Ads và ghi vào nhật ký.</p><div className="confirm-target"><strong>{confirm.campaign.name}</strong><small>ID {confirm.campaign.campaignId}</small></div>{mutationError && <p className="form-error">{mutationError}</p>}<div className="modal-actions"><button onClick={() => setConfirm(null)}>Huỷ</button><button className={confirm.next === 'PAUSED' ? 'danger-action' : 'primary-action'} disabled={isMutating} onClick={() => submitCampaign(confirm.campaign.id, confirm.next)}>{isMutating ? 'Đang xử lý...' : 'Xác nhận'}</button></div></div></div>}
@@ -137,7 +141,26 @@ function JobsView(){return <div className="jobs-layout"><article className="pane
 
 function AuditView(){return <article className="panel audit-panel"><div className="audit-header"><PanelHead title="Hoạt động gần đây" subtitle="Mọi thay đổi quan trọng đều được ghi nhận"/><label><Search size={14}/><input placeholder="Tìm trong nhật ký..."/></label></div><div className="audit-timeline">{auditLogs.map((log,index)=><div key={log.id}><span className={`audit-dot dot-${index%4}`}>{index===0?<Pause size={13}/>:index===1?<CircleDollarSign size={13}/>:index===2?<RefreshCw size={13}/>:<Download size={13}/>}</span><div><strong>{log.action.replaceAll('_',' ')}</strong><p><b>{log.user}</b> · {log.entity}</p><small>{log.time} · IP {log.ip}</small></div><button>Chi tiết</button></div>)}</div></article>}
 
-function SettingsView({user,enabled,setEnabled}:{user:{name:string;email:string}|null;enabled:boolean;setEnabled:(v:boolean)=>void}){return <div className="settings-layout"><article className="panel settings-card"><div className="settings-title"><span><KeyRound size={18}/></span><div><h2>Kết nối Google</h2><p>Tài khoản dùng để truy cập Google Ads API</p></div></div><div className="connection-row"><span className="google-mark">G</span><div><strong>{user?'Chưa kết nối Google Ads':'ads.operations@example.com'}</strong><small><i/> {user?'Sẵn sàng kết nối':'Dữ liệu demo · 4 MCC'}</small></div><button className="secondary-btn" onClick={()=>{window.location.href='/api/auth/google-ads'}}>Kết nối Google</button></div></article><article className="panel settings-card"><div className="settings-title"><span><RefreshCw size={18}/></span><div><h2>Đồng bộ tự động</h2><p>Lịch lấy dữ liệu từ Google Ads</p></div></div><div className="setting-row"><div><strong>Tự động đồng bộ</strong><small>Cập nhật metrics và campaign theo lịch</small></div><button className={`toggle ${enabled?'on':''}`} onClick={()=>setEnabled(!enabled)}><span/></button></div><div className="setting-row"><div><strong>Chu kỳ đồng bộ</strong><small>Khoảng cách giữa hai lần chạy</small></div><select><option>Mỗi 6 giờ</option><option>Mỗi 12 giờ</option><option>Hàng ngày</option></select></div><div className="setting-row"><div><strong>Concurrency tối đa</strong><small>Số account xử lý cùng lúc</small></div><select defaultValue="5"><option>3</option><option>5</option><option>10</option></select></div></article><article className="panel settings-card"><div className="settings-title"><span><ShieldCheck size={18}/></span><div><h2>Bảo mật</h2><p>Phiên đăng nhập và kiểm soát truy cập</p></div></div><div className="security-user"><span>{(user?.name||'Demo User').slice(0,2).toUpperCase()}</span><div><strong>{user?.name||'Người dùng Demo'}</strong><small>{user?.email||'demo@adsmanager.local'} · ADMIN</small></div><b>{user?'Phiên đã xác thực':'Chế độ demo'}</b></div></article></div>}
+type TeamMember = { id: string; name: string | null; email: string; role: 'ADMIN' | 'COLLABORATOR'; isActive: boolean; lastLoginAt: string | null };
+
+function TeamView({ currentUser }: { currentUser: DashboardUser }) {
+  const [members,setMembers]=useState<TeamMember[]>([]); const [databaseConfigured,setDatabaseConfigured]=useState(true); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [error,setError]=useState('');
+  const [form,setForm]=useState({name:'',email:'',password:'',role:'COLLABORATOR' as 'ADMIN'|'COLLABORATOR'});
+  useEffect(()=>{
+    let cancelled=false;
+    fetch('/api/users').then(async response=>{
+      const payload=await response.json() as {data?:{items:TeamMember[];databaseConfigured:boolean};error?:{message?:string}};
+      if(!response.ok||!payload.data)throw new Error(payload.error?.message||'Không thể tải thành viên.');
+      if(!cancelled){setMembers(payload.data.items);setDatabaseConfigured(payload.data.databaseConfigured)}
+    }).catch(cause=>{if(!cancelled)setError(cause instanceof Error?cause.message:'Không thể tải thành viên.')}).finally(()=>{if(!cancelled)setLoading(false)});
+    return()=>{cancelled=true};
+  },[]);
+  async function createMember(event:React.FormEvent){event.preventDefault();setSaving(true);setError('');try{const response=await fetch('/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(form)});const payload=await response.json() as {data?:TeamMember;error?:{message?:string}};if(!response.ok||!payload.data)throw new Error(payload.error?.message||'Không thể tạo tài khoản.');setMembers(items=>[...items,payload.data!]);setForm({name:'',email:'',password:'',role:'COLLABORATOR'})}catch(cause){setError(cause instanceof Error?cause.message:'Không thể tạo tài khoản.')}finally{setSaving(false)}}
+  async function updateMember(id:string,changes:Partial<Pick<TeamMember,'role'|'isActive'>>){setError('');const response=await fetch('/api/users',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({id,...changes})});const payload=await response.json() as {data?:TeamMember;error?:{message?:string}};if(!response.ok||!payload.data){setError(payload.error?.message||'Không thể cập nhật tài khoản.');return}setMembers(items=>items.map(item=>item.id===id?payload.data!:item))}
+  return <div className="team-layout"><article className="panel team-list"><div className="team-head"><PanelHead title="Danh sách thành viên" subtitle={`${members.length} tài khoản có quyền truy cập`}/><span className="permission-note"><ShieldCheck size={13}/> Phân quyền phía máy chủ</span></div>{!databaseConfigured&&<div className="database-notice">Cần cấu hình <b>DATABASE_URL</b> để thêm và lưu tài khoản cộng tác viên.</div>}{error&&<div className="team-error">{error}</div>}<div className="table-wrap"><table className="team-table"><thead><tr><th>THÀNH VIÊN</th><th>VAI TRÒ</th><th>TRẠNG THÁI</th><th>ĐĂNG NHẬP GẦN NHẤT</th><th>THAO TÁC</th></tr></thead><tbody>{loading?<tr><td colSpan={5}>Đang tải thành viên...</td></tr>:members.map((member,index)=><tr key={member.id}><td><div className={`member-avatar logo-${index%4}`}>{(member.name||member.email).slice(0,2).toUpperCase()}</div><div><strong>{member.name||'Chưa đặt tên'}{member.id===currentUser.id&&<em>Bạn</em>}</strong><small>{member.email}</small></div></td><td><select className="role-select" value={member.role} disabled={member.id===currentUser.id} onChange={event=>void updateMember(member.id,{role:event.target.value as TeamMember['role']})}><option value="ADMIN">Quản trị viên</option><option value="COLLABORATOR">Cộng tác viên</option></select></td><td><span className={`member-state ${member.isActive?'active':'locked'}`}><i/>{member.isActive?'Đang hoạt động':'Đã khóa'}</span></td><td>{member.lastLoginAt?new Date(member.lastLoginAt).toLocaleString('vi-VN'):'Chưa đăng nhập'}</td><td><button className="member-toggle" disabled={member.id===currentUser.id} onClick={()=>void updateMember(member.id,{isActive:!member.isActive})}>{member.isActive?'Khóa tài khoản':'Mở khóa'}</button></td></tr>)}</tbody></table></div></article><aside className="panel invite-card"><span className="invite-icon"><UserPlus size={19}/></span><h2>Thêm thành viên</h2><p>Cấp tài khoản đăng nhập và chọn quyền phù hợp.</p><form onSubmit={createMember}><label>Họ và tên<input value={form.name} onChange={event=>setForm(value=>({...value,name:event.target.value}))} placeholder="Nguyễn Văn A" required minLength={2}/></label><label>Email<input type="email" value={form.email} onChange={event=>setForm(value=>({...value,email:event.target.value}))} placeholder="name@company.com" required/></label><label>Mật khẩu tạm thời<input type="password" value={form.password} onChange={event=>setForm(value=>({...value,password:event.target.value}))} placeholder="Tối thiểu 10 ký tự" required minLength={10}/></label><label>Vai trò<select value={form.role} onChange={event=>setForm(value=>({...value,role:event.target.value as typeof value.role}))}><option value="COLLABORATOR">Cộng tác viên</option><option value="ADMIN">Quản trị viên</option></select></label><button disabled={saving||!databaseConfigured}>{saving?'Đang tạo...':'Tạo tài khoản'}</button></form><div className="role-rules"><strong>Quyền cộng tác viên</strong><span>✓ Xem báo cáo và dữ liệu MCC</span><span>✓ Vận hành chiến dịch và đồng bộ</span><span>— Không quản lý người dùng/kết nối</span></div></aside></div>
+}
+
+function SettingsView({user,enabled,setEnabled}:{user:DashboardUser;enabled:boolean;setEnabled:(v:boolean)=>void}){return <div className="settings-layout"><article className="panel settings-card"><div className="settings-title"><span><KeyRound size={18}/></span><div><h2>Kết nối Google</h2><p>Tài khoản dùng để truy cập Google Ads API</p></div></div><div className="connection-row"><span className="google-mark">G</span><div><strong>Chưa kết nối Google Ads</strong><small><i/> Sẵn sàng kết nối</small></div><button className="secondary-btn" onClick={()=>{window.location.href='/api/auth/google-ads'}}>Kết nối Google</button></div></article><article className="panel settings-card"><div className="settings-title"><span><RefreshCw size={18}/></span><div><h2>Đồng bộ tự động</h2><p>Lịch lấy dữ liệu từ Google Ads</p></div></div><div className="setting-row"><div><strong>Tự động đồng bộ</strong><small>Cập nhật metrics và campaign theo lịch</small></div><button className={`toggle ${enabled?'on':''}`} onClick={()=>setEnabled(!enabled)}><span/></button></div><div className="setting-row"><div><strong>Chu kỳ đồng bộ</strong><small>Khoảng cách giữa hai lần chạy</small></div><select><option>Mỗi 6 giờ</option><option>Mỗi 12 giờ</option><option>Hàng ngày</option></select></div><div className="setting-row"><div><strong>Concurrency tối đa</strong><small>Số account xử lý cùng lúc</small></div><select defaultValue="5"><option>3</option><option>5</option><option>10</option></select></div></article><article className="panel settings-card"><div className="settings-title"><span><ShieldCheck size={18}/></span><div><h2>Bảo mật</h2><p>Phiên đăng nhập và kiểm soát truy cập</p></div></div><div className="security-user"><span>{user.name.slice(0,2).toUpperCase()}</span><div><strong>{user.name}</strong><small>{user.email} · {user.role}</small></div><b>Phiên đã xác thực</b></div></article></div>}
 
 function PanelHead({title,subtitle,action}:{title:string;subtitle:string;action?:React.ReactNode}){return <div className="panel-header"><div><h2>{title}</h2><p>{subtitle}</p></div>{action}</div>}
 function SimpleAccounts({accounts}:{accounts:typeof initialAccounts}){return <div className="table-wrap"><table><thead><tr><th>TÀI KHOẢN</th><th>TRẠNG THÁI</th><th>CHI TIÊU</th><th>CHUYỂN ĐỔI</th><th>HIỆU SUẤT</th><th/></tr></thead><tbody>{accounts.map((account,index)=><tr key={account.id}><td><div className={`account-logo logo-${index%4}`}>{account.name[0]}</div><div><strong>{account.name}</strong><small>{account.customerId}</small></div></td><td><Status value={account.status}/></td><td><strong>{formatVnd(account.spend)}</strong></td><td>{account.conversions.toLocaleString('vi-VN')}</td><td><div className="progress"><span style={{width:`${88-index*9}%`}}/></div></td><td><button className="row-btn"><ChevronRight size={14}/></button></td></tr>)}</tbody></table></div>}

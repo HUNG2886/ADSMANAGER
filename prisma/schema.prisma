@@ -9,6 +9,7 @@ datasource db {
 
 enum Role {
   USER
+  COLLABORATOR
   ADMIN
   SUPER_ADMIN
 }
@@ -50,7 +51,10 @@ model User {
   email String @unique
   name String?
   image String?
-  role Role @default(USER)
+  passwordHash String?
+  role Role @default(COLLABORATOR)
+  isActive Boolean @default(true)
+  lastLoginAt DateTime?
   connections GoogleConnection[]
   mccs MCC[]
   auditLogs AuditLog[]
