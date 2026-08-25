@@ -35,17 +35,18 @@ export async function diagnoseGoogleAdsConnection(connectionId:string,userId:str
   if(!connection)return{connectionId,success:false,error:{code:'CONNECTION_NOT_FOUND',type:'LOCAL_VALIDATION',message:'Không tìm thấy Google connection.',requestId:null,status:404,rootStatus:null}};
   const base={connectionId:connection.id,googleEmail:connection.googleEmail,connectionStatus:connection.status,refreshToken:{stored:Boolean(connection.refreshTokenEncrypted),encrypted:connection.refreshTokenEncrypted?.startsWith('v1.')===true},accessToken:{stored:Boolean(connection.accessTokenEncrypted),expiresAt:connection.expiresAt?.toISOString()??null},lastRefreshedAt:connection.lastRefreshedAt?.toISOString()??null,lastSyncAt:connection.lastSyncAt?.toISOString()??null};
   let refreshSucceeded=false;
+  let accessibleCustomerIds:string[]=[];
   try{
     const{accessToken}=await connectionAccessToken(connection.id,true);
     refreshSucceeded=true;
     const developerToken=process.env.GOOGLE_DEVELOPER_TOKEN?.trim();
     if(!developerToken)throw new GoogleAdsError('GOOGLE_ADS_NOT_CONFIGURED','GOOGLE_DEVELOPER_TOKEN chưa được cấu hình.',503,null,'LOCAL_CONFIGURATION');
-    const hierarchy=await new HierarchyService(accessToken,developerToken).discover();
+    const hierarchy=await new HierarchyService(accessToken,developerToken).discover(ids=>{accessibleCustomerIds=ids});
     logGoogleAds('diagnostics_succeeded',{connectionId:connection.id,googleEmail:connection.googleEmail,accessibleCustomerIds:hierarchy.accessibleCustomerIds});
     return{...base,success:true,refreshToken:{...base.refreshToken,refreshSucceeded:true},developerTokenAccessLevel:inferDeveloperTokenAccess(null),cloudProject:cloudProjectAssessment(null),api:{version:GOOGLE_ADS_API_VERSION,accessibleCustomerIds:hierarchy.accessibleCustomerIds,mccs:hierarchy.mccs.map(item=>({customerId:item.customerId,parentCustomerId:item.parentCustomerId,manager:item.manager,level:item.level,loginCustomerId:item.manager?item.loginCustomerId:null,testAccount:item.testAccount})),accounts:hierarchy.accounts.map(item=>({customerId:item.customerId,parentCustomerId:item.parentCustomerId,parentManagerCustomerId:item.parentManagerCustomerId,loginCustomerId:item.parentCustomerId?item.loginCustomerId:null,testAccount:item.testAccount}))}};
   }catch(cause){
     const error=cause instanceof GoogleAdsError?cause:new GoogleAdsError('DIAGNOSTIC_FAILED',cause instanceof Error?cause.message:'Google Ads diagnostic failed.',500,null,'LOCAL_ERROR');
     logGoogleAds('diagnostics_failed',{connectionId:connection.id,googleEmail:connection.googleEmail,error},'error');
-    return{...base,success:false,refreshToken:{...base.refreshToken,refreshSucceeded},developerTokenAccessLevel:inferDeveloperTokenAccess(error),cloudProject:cloudProjectAssessment(error),api:{version:GOOGLE_ADS_API_VERSION,accessibleCustomerIds:[],mccs:[],accounts:[]},error:googleAdsErrorDetails(error)};
+    return{...base,success:false,refreshToken:{...base.refreshToken,refreshSucceeded},developerTokenAccessLevel:inferDeveloperTokenAccess(error),cloudProject:cloudProjectAssessment(error),api:{version:GOOGLE_ADS_API_VERSION,accessibleCustomerIds,mccs:[],accounts:[]},error:googleAdsErrorDetails(error)};
   }
 }

@@ -37,11 +37,12 @@ function snapshot(value: GoogleCustomer | GoogleCustomerClient, fallbackId: stri
 export class HierarchyService {
   constructor(private accessToken: string, private developerToken: string) {}
 
-  async discover() {
+  async discover(onAccessibleCustomers?:(customerIds:string[])=>void) {
     const baseClient = new GoogleAdsClient({ accessToken: this.accessToken, developerToken: this.developerToken });
     const resourceNames = await new MccService(baseClient).listAccessibleCustomers();
     const accessibleCustomerIds=(resourceNames.resourceNames??[]).map(normalizeCustomerId).filter(Boolean);
     logGoogleAds('accessible_customers_listed',{accessibleCustomerIds});
+    onAccessibleCustomers?.(accessibleCustomerIds);
     const mccs: HierarchyMcc[] = [];
     const accounts: HierarchyAccount[] = [];
 
