@@ -1,2 +1,6 @@
-import { campaigns } from '../../../../../lib/demo-data'; import { apiUser, fail, ok } from '../../../../../lib/api';
-export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){if(!await apiUser())return fail('UNAUTHORIZED','Vui lòng đăng nhập.',401);const {id}=await params;return ok(campaigns.filter(x=>x.accountId===id))}
+import { accounts,campaigns } from '@/lib/demo-data';
+import { canAccessMcc } from '@/lib/data-access';
+import { fail,ok } from '@/lib/api';
+import { requireReadAccess } from '@/lib/rbac';
+
+export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){const access=await requireReadAccess();if(access.error)return access.error;const{id}=await params;const account=accounts.find(value=>value.id===id);if(!account)return fail('NOT_FOUND','Không tìm thấy tài khoản.',404);if(!await canAccessMcc(access.user,account.mccId))return fail('FORBIDDEN','Bạn không có quyền xem tài khoản này.',403);return ok(campaigns.filter(item=>item.accountId===id))}

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { apiUser, fail } from '../../../../../lib/api';
+import { fail } from '../../../../../lib/api';
 import { encryptSecret } from '../../../../../lib/encryption';
 import { GoogleAdsClient, MccService } from '../../../../../services/google-ads';
 import { prisma } from '../../../../../lib/prisma';
+import { PERMISSIONS } from '../../../../../lib/permissions';
+import { requirePermission } from '../../../../../lib/rbac';
 
 export async function GET(request: Request) {
-  const url = new URL(request.url); const user = await apiUser();
-  if (!user || user.demo) return fail('AUTH_REQUIRED', 'Phiên đăng nhập không hợp lệ.', 401);
-  if (user.role !== 'ADMIN') return fail('FORBIDDEN', 'Chỉ quản trị viên được kết nối tài khoản Google Ads.', 403);
+  const url = new URL(request.url); const access=await requirePermission(PERMISSIONS.CONNECT_MCC);if(access.error)return access.error;const user=access.user;
+  if(user.demo)return fail('AUTH_REQUIRED','Hãy tắt DEMO_MODE trước khi kết nối Google Ads.',409);
   const cookieState = request.headers.get('cookie')?.split(';').map(x=>x.trim()).find(x=>x.startsWith('google_ads_oauth_state='))?.split('=')[1];
   const state = url.searchParams.get('state'); const code = url.searchParams.get('code');
   if (!state || state !== cookieState || !code) return fail('OAUTH_STATE_INVALID', 'Yêu cầu OAuth không hợp lệ hoặc đã hết hạn.', 400);

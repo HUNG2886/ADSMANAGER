@@ -1,7 +1,7 @@
 import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
-  id: text('id').primaryKey(), email: text('email').notNull(), name: text('name'), image: text('image'), passwordHash: text('password_hash'), role: text('role').notNull().default('COLLABORATOR'), isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true), lastLoginAt: integer('last_login_at', { mode: 'timestamp_ms' }), createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(), updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  id: text('id').primaryKey(), email: text('email').notNull(), name: text('name'), image: text('image'), passwordHash: text('password_hash'), role: text('role').notNull().default('STAFF'), status: text('status').notNull().default('ACTIVE'), sessionVersion: integer('session_version').notNull().default(0), lastLoginAt: integer('last_login_at', { mode: 'timestamp_ms' }), createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(), updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 }, table => [uniqueIndex('idx_users_email').on(table.email)]);
 
 export const googleConnections = sqliteTable('google_connections', {
@@ -11,6 +11,10 @@ export const googleConnections = sqliteTable('google_connections', {
 export const mccAccounts = sqliteTable('mcc_accounts', {
   id: text('id').primaryKey(), userId: text('user_id').notNull(), connectionId: text('connection_id').notNull(), customerId: text('customer_id').notNull(), name: text('name').notNull(), currency: text('currency'), timezone: text('timezone'), status: text('status').notNull(), lastSyncAt: integer('last_sync_at', { mode: 'timestamp_ms' }), createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(), updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 }, table => [index('idx_mcc_user_id').on(table.userId), uniqueIndex('idx_mcc_customer_user').on(table.customerId, table.userId), index('idx_mcc_status').on(table.status)]);
+
+export const userMccPermissions = sqliteTable('user_mcc_permissions', {
+  id: text('id').primaryKey(), userId: text('user_id').notNull(), mccId: text('mcc_id').notNull(), createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+}, table => [uniqueIndex('idx_user_mcc_permissions_unique').on(table.userId, table.mccId), index('idx_user_mcc_permissions_user').on(table.userId), index('idx_user_mcc_permissions_mcc').on(table.mccId)]);
 
 export const customerAccounts = sqliteTable('customer_accounts', {
   id: text('id').primaryKey(), mccId: text('mcc_id').notNull(), customerId: text('customer_id').notNull(), name: text('name').notNull(), currency: text('currency'), timezone: text('timezone'), status: text('status').notNull(), lastSyncAt: integer('last_sync_at', { mode: 'timestamp_ms' }), createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(), updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),

@@ -1,14 +1,16 @@
 import { z } from 'zod';
-import { apiUser, fail, ok, requestIp } from '../../../lib/api';
+import { fail, ok, requestIp } from '../../../lib/api';
 import { writeAudit } from '../../../lib/audit';
 import { decryptSecret } from '../../../lib/encryption';
 import { CampaignService, GoogleAdsClient, GoogleAdsError, refreshGoogleAccessToken } from '../../../services/google-ads';
 import { prisma } from '../../../lib/prisma';
+import { PERMISSIONS } from '../../../lib/permissions';
+import { requirePermission } from '../../../lib/rbac';
 
 const updateSchema = z.object({ id: z.string().min(1).max(80), status: z.enum(['ENABLED','PAUSED']), campaignId: z.string().regex(/^\d+$/).optional(), customerId: z.string().optional(), loginCustomerId: z.string().optional(), connectionId: z.string().uuid().optional() });
 
 export async function PATCH(request: Request) {
-  const user = await apiUser(); if (!user) return fail('UNAUTHORIZED', 'Vui lòng đăng nhập để tiếp tục.', 401);
+  const access = await requirePermission(PERMISSIONS.UPDATE_CAMPAIGN); if (access.error) return access.error; const user = access.user;
   const parsed = updateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail('INVALID_ARGUMENT', 'Dữ liệu chiến dịch không hợp lệ.', 422);
   if (!user.demo) {

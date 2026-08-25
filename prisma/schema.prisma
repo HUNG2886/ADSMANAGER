@@ -8,10 +8,13 @@ datasource db {
 }
 
 enum Role {
-  USER
-  COLLABORATOR
   ADMIN
-  SUPER_ADMIN
+  STAFF
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 enum AccountStatus {
@@ -52,14 +55,28 @@ model User {
   name String?
   image String?
   passwordHash String?
-  role Role @default(COLLABORATOR)
-  isActive Boolean @default(true)
+  role Role @default(STAFF)
+  status UserStatus @default(ACTIVE)
+  sessionVersion Int @default(0)
   lastLoginAt DateTime?
   connections GoogleConnection[]
   mccs MCC[]
+  mccPermissions UserMCCPermission[]
   auditLogs AuditLog[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model UserMCCPermission {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mccId String
+  mcc MCC @relation(fields: [mccId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([userId, mccId])
+  @@index([userId])
+  @@index([mccId])
 }
 
 model GoogleConnection {
@@ -89,6 +106,7 @@ model MCC {
   status String
   lastSyncAt DateTime?
   accounts CustomerAccount[]
+  userPermissions UserMCCPermission[]
   syncJobs SyncJob[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

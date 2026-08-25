@@ -2,19 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Activity, BarChart3, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign, Download, FileClock, Gauge, KeyRound, Layers3, LayoutDashboard, LogOut, Menu, Network, Pause, Play, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, UserPlus, Users, X, Zap } from 'lucide-react';
+import { Activity, BarChart3, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign, Download, FileClock, Gauge, KeyRound, Layers3, LayoutDashboard, LogOut, Menu, Network, Pause, Pencil, Play, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Trash2, UserPlus, UserRound, Users, X, Zap } from 'lucide-react';
 import { accounts as initialAccounts, auditLogs, campaigns as sourceCampaigns, formatVnd, jobs, mccs, metrics, type CampaignStatus } from '../lib/demo-data';
+import { PERMISSIONS, type Permission } from '../lib/permissions';
 
 type Section = 'overview' | 'mcc' | 'accounts' | 'campaigns' | 'analytics' | 'jobs' | 'team' | 'audit' | 'settings';
 type Campaign = typeof sourceCampaigns[number];
-type DashboardUser = { id: string; name: string; email: string; role: 'ADMIN' | 'COLLABORATOR' };
+type DashboardUser = { id: string; name: string; email: string; role: 'ADMIN' | 'STAFF' };
 
 const navGroups: { label: string; items: { id: Section; label: string; icon: typeof LayoutDashboard; badge?: string; adminOnly?: boolean }[] }[] = [
   { label: 'KHÔNG GIAN LÀM VIỆC', items: [
     { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard }, { id: 'mcc', label: 'Tài khoản MCC', icon: Network, badge: '4' }, { id: 'accounts', label: 'Google Ads', icon: Layers3 }, { id: 'campaigns', label: 'Chiến dịch', icon: Zap }, { id: 'analytics', label: 'Phân tích', icon: BarChart3 },
   ]},
   { label: 'VẬN HÀNH', items: [
-    { id: 'jobs', label: 'Tiến trình đồng bộ', icon: RefreshCw, badge: '3' }, { id: 'team', label: 'Thành viên', icon: Users, adminOnly: true }, { id: 'audit', label: 'Nhật ký hoạt động', icon: FileClock, adminOnly: true }, { id: 'settings', label: 'Cài đặt', icon: Settings, adminOnly: true },
+    { id: 'jobs', label: 'Tiến trình đồng bộ', icon: RefreshCw, badge: '3' }, { id: 'team', label: 'Thành viên', icon: Users, adminOnly: true }, { id: 'audit', label: 'Nhật ký hoạt động', icon: FileClock }, { id: 'settings', label: 'Cài đặt', icon: Settings, adminOnly: true },
   ]},
 ];
 
@@ -30,8 +31,8 @@ const sectionTitles: Record<Section, [string, string]> = {
   settings: ['Cài đặt', 'Quản lý kết nối, đồng bộ và chính sách bảo mật.'],
 };
 
-export function DashboardApp({ user }: { user: DashboardUser }) {
-  const [section, setSection] = useState<Section>('overview');
+export function DashboardApp({ user, permissions, initialSection = 'overview' }: { user: DashboardUser; permissions: Permission[]; initialSection?: Section }) {
+  const [section, setSection] = useState<Section>(initialSection);
   const [mobileNav, setMobileNav] = useState(false);
   const [search, setSearch] = useState('');
   const [range, setRange] = useState('30 ngày qua');
@@ -58,12 +59,15 @@ export function DashboardApp({ user }: { user: DashboardUser }) {
 
   const filteredAccounts = initialAccounts.filter(item => item.name.toLowerCase().includes(accountFilter.toLowerCase()) && (statusFilter === 'ALL' || item.status === statusFilter));
   const initials = user.name.split(' ').slice(-2).map(x => x[0]).join('').toUpperCase();
+  const canExport = permissions.includes(PERMISSIONS.EXPORT_DATA);
+  const canMutate = user.role === 'ADMIN';
 
   function navigate(next: Section) { setSection(next); setMobileNav(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   async function logout() { await fetch('/api/auth/logout', { method: 'POST' }); window.location.assign('/login'); }
-  function exportCsv() {
-    const rows = [['Account','Customer ID','Status','Spend','Clicks','Conversions'], ...initialAccounts.map(a => [a.name,a.customerId,a.status,a.spend,a.clicks,a.conversions])];
-    const blob = new Blob(['\ufeff' + rows.map(row => row.join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+  async function exportCsv() {
+    const response = await fetch('/api/export/accounts');
+    if (!response.ok) { setToast('Bạn không có quyền xuất dữ liệu.'); return; }
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'ads-manager-accounts.csv'; link.click(); URL.revokeObjectURL(url); setToast('Đã xuất báo cáo CSV.'); setTimeout(() => setToast(''), 3200);
   }
   async function submitCampaign(id: string, status: CampaignStatus) {
@@ -90,35 +94,36 @@ export function DashboardApp({ user }: { user: DashboardUser }) {
       <header className="topbar">
         <button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20}/></button>
         <div className="global-search"><Search size={15}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm MCC, tài khoản, chiến dịch..." aria-label="Tìm kiếm toàn cục"/><kbd>⌘ K</kbd>{searchResults.length > 0 && <div className="search-results">{searchResults.map(result => <button key={`${result.type}-${result.id}`} onClick={() => { navigate(result.section); setSearch(''); }}><span>{result.type.slice(0,1)}</span><div><strong>{result.title}</strong><small>{result.type} · {result.subtitle}</small></div><ChevronRight size={14}/></button>)}</div>}</div>
-        <div className="top-actions"><button className="icon-btn" aria-label="Thông báo"><Bell size={18}/><span/></button><div className="user"><span>{initials}</span><div><strong>{user.name}</strong><small>{user.role === 'ADMIN' ? 'Quản trị viên' : 'Cộng tác viên'}</small></div></div><button className="logout-btn" onClick={logout} aria-label="Đăng xuất" title="Đăng xuất"><LogOut size={16}/></button></div>
+        <div className="top-actions"><button className="icon-btn" aria-label="Thông báo"><Bell size={18}/><span/></button><a className="user user-link" href="/profile" title="Mở hồ sơ"><span>{initials}</span><div><strong>{user.name}</strong><small>{user.role === 'ADMIN' ? 'Quản trị viên' : 'Cộng tác viên · Chỉ xem'}</small></div></a><button className="logout-btn" onClick={logout} aria-label="Đăng xuất" title="Đăng xuất"><LogOut size={16}/></button></div>
       </header>
 
       <div className="content">
-        <div className="page-heading"><div><p className="eyebrow">ADS MANAGER PRO</p><h1>{sectionTitles[section][0]}</h1><p>{sectionTitles[section][1]}</p></div><div className="heading-actions"><label className="date-select"><CalendarDays size={14}/><select value={range} onChange={e => setRange(e.target.value)}><option>Hôm nay</option><option>7 ngày qua</option><option>14 ngày qua</option><option>30 ngày qua</option><option>Tháng này</option></select><ChevronDown size={12}/></label>{section === 'mcc' && user.role === 'ADMIN' ? <button className="primary-btn" onClick={()=>{window.location.href='/api/auth/google-ads'}}><Plus size={14}/> Kết nối MCC</button> : <button className="secondary-btn" onClick={exportCsv}><Download size={14}/> Xuất dữ liệu</button>}</div></div>
-        {section === 'overview' && <Overview onNavigate={navigate}/>} 
-        {section === 'mcc' && <MccView expanded={expandedMcc} setExpanded={setExpandedMcc}/>} 
-        {section === 'accounts' && <AccountsView accounts={filteredAccounts} filter={accountFilter} setFilter={setAccountFilter} status={statusFilter} setStatus={setStatusFilter} selected={selected} setSelected={setSelected} notify={setToast}/>} 
-        {section === 'campaigns' && <CampaignsView campaigns={campaigns} setConfirm={setConfirm}/>} 
+        <div className="page-heading"><div><p className="eyebrow">ADS MANAGER PRO</p><h1>{sectionTitles[section][0]}</h1><p>{sectionTitles[section][1]}</p></div><div className="heading-actions"><label className="date-select"><CalendarDays size={14}/><select value={range} onChange={e => setRange(e.target.value)}><option>Hôm nay</option><option>7 ngày qua</option><option>14 ngày qua</option><option>30 ngày qua</option><option>Tháng này</option></select><ChevronDown size={12}/></label>{section === 'mcc' && canMutate ? <button className="primary-btn" onClick={()=>{window.location.href='/api/auth/google-ads'}}><Plus size={14}/> Kết nối MCC</button> : canExport ? <button className="secondary-btn" onClick={()=>void exportCsv()}><Download size={14}/> Xuất dữ liệu</button> : <span className="read-only-chip"><ShieldCheck size={13}/> Chế độ chỉ xem</span>}</div></div>
+        {!canMutate && <div className="read-only-banner"><ShieldCheck size={15}/><span>Tài khoản STAFF đang ở chế độ chỉ xem. Mọi thao tác thay đổi dữ liệu đều bị khóa.</span></div>}
+        {section === 'overview' && <Overview onNavigate={navigate} isAdmin={canMutate}/>} 
+        {section === 'mcc' && <MccView expanded={expandedMcc} setExpanded={setExpandedMcc} canMutate={canMutate}/>} 
+        {section === 'accounts' && <AccountsView accounts={filteredAccounts} filter={accountFilter} setFilter={setAccountFilter} status={statusFilter} setStatus={setStatusFilter} selected={selected} setSelected={setSelected} notify={setToast} canMutate={canMutate} canExport={canExport}/>} 
+        {section === 'campaigns' && <CampaignsView campaigns={campaigns} setConfirm={setConfirm} canMutate={canMutate}/>} 
         {section === 'analytics' && <AnalyticsView/>} 
         {section === 'jobs' && <JobsView/>} 
         {section === 'team' && user.role === 'ADMIN' && <TeamView currentUser={user}/>}
-        {section === 'audit' && user.role === 'ADMIN' && <AuditView/>}
+        {section === 'audit' && <AuditView/>}
         {section === 'settings' && user.role === 'ADMIN' && <SettingsView user={user} enabled={syncEnabled} setEnabled={setSyncEnabled}/>}
       </div>
     </section>
-    {confirm && <div className="modal-backdrop" role="presentation"><div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><button className="modal-close" onClick={() => setConfirm(null)}><X size={17}/></button><span className={`modal-icon ${confirm.next === 'PAUSED' ? 'pause' : ''}`}>{confirm.next === 'PAUSED' ? <Pause size={21}/> : <Play size={21}/>}</span><h2 id="confirm-title">{confirm.next === 'PAUSED' ? 'Tạm dừng' : 'Bật'} chiến dịch?</h2><p>Thao tác này sẽ được gửi tới Google Ads và ghi vào nhật ký.</p><div className="confirm-target"><strong>{confirm.campaign.name}</strong><small>ID {confirm.campaign.campaignId}</small></div>{mutationError && <p className="form-error">{mutationError}</p>}<div className="modal-actions"><button onClick={() => setConfirm(null)}>Huỷ</button><button className={confirm.next === 'PAUSED' ? 'danger-action' : 'primary-action'} disabled={isMutating} onClick={() => submitCampaign(confirm.campaign.id, confirm.next)}>{isMutating ? 'Đang xử lý...' : 'Xác nhận'}</button></div></div></div>}
+    {confirm && canMutate && <div className="modal-backdrop" role="presentation"><div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><button className="modal-close" onClick={() => setConfirm(null)}><X size={17}/></button><span className={`modal-icon ${confirm.next === 'PAUSED' ? 'pause' : ''}`}>{confirm.next === 'PAUSED' ? <Pause size={21}/> : <Play size={21}/>}</span><h2 id="confirm-title">{confirm.next === 'PAUSED' ? 'Tạm dừng' : 'Bật'} chiến dịch?</h2><p>Thao tác này sẽ được gửi tới Google Ads và ghi vào nhật ký.</p><div className="confirm-target"><strong>{confirm.campaign.name}</strong><small>ID {confirm.campaign.campaignId}</small></div>{mutationError && <p className="form-error">{mutationError}</p>}<div className="modal-actions"><button onClick={() => setConfirm(null)}>Huỷ</button><button className={confirm.next === 'PAUSED' ? 'danger-action' : 'primary-action'} disabled={isMutating} onClick={() => submitCampaign(confirm.campaign.id, confirm.next)}>{isMutating ? 'Đang xử lý...' : 'Xác nhận'}</button></div></div></div>}
     {toast && <div className="toast"><CheckCircle2 size={17}/>{toast}<button onClick={() => setToast('')}><X size={14}/></button></div>}
   </main>;
 }
 
-function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
+function Overview({ onNavigate, isAdmin }: { onNavigate: (section: Section) => void; isAdmin: boolean }) {
   const kpis = [
     { label: 'Tổng chi tiêu', value: '1,284,6 tr đ', change: '+12,8%', icon: CircleDollarSign, tone: 'blue' },
     { label: 'Lượt nhấp', value: '458.280', change: '+8,4%', icon: Activity, tone: 'violet' },
     { label: 'Chuyển đổi', value: '18.492', change: '+16,2%', icon: CheckCircle2, tone: 'emerald' },
     { label: 'CPA trung bình', value: '69.466 đ', change: '-3,7%', icon: Gauge, tone: 'orange' },
   ];
-  return <><div className="notice"><Sparkles size={15}/><span><strong>3 đề xuất tối ưu mới</strong> có thể giúp giảm 8,2% CPA tuần này.</span><button onClick={() => onNavigate('analytics')}>Xem phân tích <ChevronRight size={13}/></button></div><div className="kpi-grid">{kpis.map(item => <article className={`kpi-card ${item.tone}`} key={item.label}><div className="kpi-top"><span className="metric-icon"><item.icon size={16}/></span><span className="change">{item.change}</span></div><p>{item.label}</p><strong>{item.value}</strong><small>so với kỳ trước</small></article>)}</div><div className="main-grid"><article className="panel chart-panel"><PanelHead title="Chi tiêu & chuyển đổi" subtitle="Xu hướng hiệu suất 30 ngày qua"/><div className="rechart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={metrics}><defs><linearGradient id="spend" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3767f6" stopOpacity={.24}/><stop offset="100%" stopColor="#3767f6" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#edf0f5" vertical={false}/><XAxis dataKey="date" tick={{fontSize:9,fill:'#9ba3b1'}} tickLine={false} axisLine={false} interval={6}/><YAxis tick={{fontSize:9,fill:'#9ba3b1'}} tickLine={false} axisLine={false}/><Tooltip contentStyle={{border:'1px solid #e8eaf0',borderRadius:10,fontSize:11}}/><Area type="monotone" dataKey="spend" stroke="#3767f6" fill="url(#spend)" strokeWidth={2.5}/><Line type="monotone" dataKey="previous" stroke="#9b6cf7" dot={false} strokeDasharray="4 4"/></AreaChart></ResponsiveContainer></div></article><article className="panel health-panel"><PanelHead title="Sức khoẻ tài khoản" subtitle="20 tài khoản"/><div className="donut"><div><strong>85%</strong><span>Ổn định</span></div></div><div className="health-list"><div><span><i className="healthy"/>Hoạt động</span><b>17</b></div><div><span><i className="warning"/>Cần chú ý</span><b>2</b></div><div><span><i className="danger"/>Tạm ngưng</span><b>1</b></div></div></article></div><article className="panel accounts-panel"><PanelHead title="Tài khoản hàng đầu" subtitle="Xếp hạng theo chi tiêu trong kỳ" action={<button className="text-btn" onClick={() => onNavigate('accounts')}>Xem tất cả <ChevronRight size={13}/></button>}/><SimpleAccounts accounts={initialAccounts.slice(0,5)}/></article></>;
+  return <>{isAdmin&&<div className="admin-overview"><article><Users size={17}/><span>Người dùng</span><strong>2</strong><small>2 đang hoạt động</small></article><article><Network size={17}/><span>MCC kết nối</span><strong>4</strong><small>3 ổn định</small></article><article><RefreshCw size={17}/><span>Job hôm nay</span><strong>248</strong><small>97,2% thành công</small></article><article><ShieldCheck size={17}/><span>Cảnh báo bảo mật</span><strong>0</strong><small>Hệ thống an toàn</small></article></div>}<div className="notice"><Sparkles size={15}/><span><strong>3 đề xuất tối ưu mới</strong> có thể giúp giảm 8,2% CPA tuần này.</span><button onClick={() => onNavigate('analytics')}>Xem phân tích <ChevronRight size={13}/></button></div><div className="kpi-grid">{kpis.map(item => <article className={`kpi-card ${item.tone}`} key={item.label}><div className="kpi-top"><span className="metric-icon"><item.icon size={16}/></span><span className="change">{item.change}</span></div><p>{item.label}</p><strong>{item.value}</strong><small>so với kỳ trước</small></article>)}</div><div className="main-grid"><article className="panel chart-panel"><PanelHead title="Chi tiêu & chuyển đổi" subtitle="Xu hướng hiệu suất 30 ngày qua"/><div className="rechart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={metrics}><defs><linearGradient id="spend" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3767f6" stopOpacity={.24}/><stop offset="100%" stopColor="#3767f6" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#edf0f5" vertical={false}/><XAxis dataKey="date" tick={{fontSize:9,fill:'#9ba3b1'}} tickLine={false} axisLine={false} interval={6}/><YAxis tick={{fontSize:9,fill:'#9ba3b1'}} tickLine={false} axisLine={false}/><Tooltip contentStyle={{border:'1px solid #e8eaf0',borderRadius:10,fontSize:11}}/><Area type="monotone" dataKey="spend" stroke="#3767f6" fill="url(#spend)" strokeWidth={2.5}/><Line type="monotone" dataKey="previous" stroke="#9b6cf7" dot={false} strokeDasharray="4 4"/></AreaChart></ResponsiveContainer></div></article><article className="panel health-panel"><PanelHead title="Sức khoẻ tài khoản" subtitle="20 tài khoản"/><div className="donut"><div><strong>85%</strong><span>Ổn định</span></div></div><div className="health-list"><div><span><i className="healthy"/>Hoạt động</span><b>17</b></div><div><span><i className="warning"/>Cần chú ý</span><b>2</b></div><div><span><i className="danger"/>Tạm ngưng</span><b>1</b></div></div></article></div><article className="panel accounts-panel"><PanelHead title="Tài khoản hàng đầu" subtitle="Xếp hạng theo chi tiêu trong kỳ" action={<button className="text-btn" onClick={() => onNavigate('accounts')}>Xem tất cả <ChevronRight size={13}/></button>}/><SimpleAccounts accounts={initialAccounts.slice(0,5)}/></article></>;
 }
 
 function MccView({ expanded, setExpanded }: { expanded: string[]; setExpanded: (value: string[]) => void }) {

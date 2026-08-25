@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getCurrentUser, localDevelopmentCredentials } from '../../lib/auth';
+import { getCurrentUser } from '../../lib/auth';
 import { LoginForm } from './login-form';
 
 export const dynamic = 'force-dynamic';
@@ -8,5 +8,5 @@ export const metadata: Metadata = { title: 'Đăng nhập | Ads Manager Pro', de
 
 export default async function LoginPage() {
   if (await getCurrentUser()) redirect('/');
-  return <LoginForm developmentCredentials={localDevelopmentCredentials()} />;
+  return <LoginForm />;
 }

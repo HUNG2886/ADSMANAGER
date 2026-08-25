@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { apiUser, fail } from '../../../../lib/api';
+import { fail } from '../../../../lib/api';
+import { PERMISSIONS } from '../../../../lib/permissions';
+import { requirePermission } from '../../../../lib/rbac';
 
 export async function GET(request: Request) {
-  const user = await apiUser(); if (!user || user.demo) return fail('AUTH_REQUIRED', 'Hãy đăng nhập trước khi kết nối Google Ads.', 401);
-  if (user.role !== 'ADMIN') return fail('FORBIDDEN', 'Chỉ quản trị viên được kết nối tài khoản Google Ads.', 403);
+  const access=await requirePermission(PERMISSIONS.CONNECT_MCC);if(access.error)return access.error;const user=access.user;if(user.demo)return fail('AUTH_REQUIRED','Hãy tắt DEMO_MODE trước khi kết nối Google Ads.',409);
   const clientId = process.env.GOOGLE_CLIENT_ID; if (!clientId) return fail('OAUTH_NOT_CONFIGURED', 'Google OAuth chưa được cấu hình.', 503);
   const origin = process.env.NEXTAUTH_URL || new URL(request.url).origin;
   const state = crypto.randomUUID();
