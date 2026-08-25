@@ -46,12 +46,12 @@ Campaign mutations luôn đi qua backend. UI yêu cầu xác nhận, backend ki�
 - `ADMIN`: toàn quyền, bao gồm kết nối MCC, đồng bộ, sửa campaign, cài đặt và quản lý user.
 - `STAFF`: chỉ đọc. Quyền xuất CSV có thể tắt bằng `STAFF_EXPORT_ENABLED=false`.
 - Session được mã hoá trong cookie `HttpOnly`, `SameSite=Lax`; thời hạn 12 giờ hoặc 30 ngày khi chọn ghi nhớ.
-- Mật khẩu dùng bcrypt 12 rounds. Khoá user, reset password và đăng xuất tất cả phiên đều thu hồi session cũ.
+- Mật khẩu mới dùng Argon2id; hash bcrypt cũ chỉ được giữ để nâng cấp tự động sau lần đăng nhập thành công. Khoá user, reset password và đăng xuất tất cả phiên đều thu hồi session cũ.
 - Khởi tạo ADMIN/STAFF bằng `DEFAULT_ADMIN_*`, `DEFAULT_STAFF_*` và `npm run db:seed`; không hard-code mật khẩu production.
 
 ## Deploy Vercel
 
 1. Import GitHub repository và giữ Framework Preset là **Next.js**. Không đặt Output Directory; Next.js dùng `.next` mặc định.
 2. Thêm tối thiểu `AUTH_SECRET`, `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_PASSWORD`, `DEFAULT_STAFF_EMAIL`, `DEFAULT_STAFF_PASSWORD`, `DATABASE_URL` và `NEXTAUTH_URL` trong Project Settings → Environment Variables.
-3. Chạy `npm run db:deploy` và `npm run db:seed` với cùng `DATABASE_URL` trước khi cho người dùng đăng nhập.
+3. Build Vercel tự chạy `prisma migrate deploy` và seed idempotent trước khi build Next.js. Seed chỉ upsert hai tài khoản bootstrap theo environment, không tạo lại dữ liệu demo.
 4. Build command đã được cố định trong `vercel.json` là `npm run build:vercel`; không dùng `vinext build` cho Vercel.

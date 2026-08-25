@@ -9,19 +9,23 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "build:vercel": "npm run build",
+    "build:vercel": "prisma migrate deploy && prisma db seed && npm run build",
     "dev:sites": "vinext dev",
     "build:sites": "vinext build",
     "start:sites": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "prisma db seed",
     "test": "vitest run",
     "worker": "tsx workers/worker.ts",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
+    "@node-rs/argon2": "^2.1.0",
     "@prisma/client": "^6.12.0",
     "@tanstack/react-query": "^5.102.3",
     "bcryptjs": "^3.0.2",

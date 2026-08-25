@@ -5,7 +5,7 @@ import { hashPassword } from '@/lib/auth';
 import { hasPostgres, prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/rbac';
 
-const password=z.string().min(10).max(72).regex(/[a-zA-Z]/).regex(/[0-9]/);
+const password=z.string().min(10).max(128).regex(/[a-zA-Z]/).regex(/[0-9]/);
 const createSchema=z.object({name:z.string().trim().min(2).max(100),email:z.string().email().max(180).transform(value=>value.trim().toLowerCase()),password,role:z.enum(['ADMIN','STAFF']).default('STAFF'),status:z.enum(['ACTIVE','SUSPENDED']).default('ACTIVE')});
 const updateSchema=z.object({id:z.string().min(1),name:z.string().trim().min(2).max(100).optional(),email:z.string().email().max(180).transform(value=>value.trim().toLowerCase()).optional(),role:z.enum(['ADMIN','STAFF']).optional(),status:z.enum(['ACTIVE','SUSPENDED']).optional(),password:password.optional(),mccIds:z.array(z.string().min(1)).max(100).optional()});
 

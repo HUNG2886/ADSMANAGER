@@ -5,7 +5,7 @@ import { writeAudit } from '@/lib/audit';
 import { hasPostgres, prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/rbac';
 
-const passwordSchema=z.object({currentPassword:z.string().min(8).max(72),newPassword:z.string().min(10).max(72).regex(/[a-zA-Z]/).regex(/[0-9]/)});
+const passwordSchema=z.object({currentPassword:z.string().min(8).max(128),newPassword:z.string().min(10).max(128).regex(/[a-zA-Z]/).regex(/[0-9]/)});
 
 export async function GET(){
   const access=await requireAuth();if(access.error)return access.error;
