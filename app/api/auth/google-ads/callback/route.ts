@@ -1,13 +1,8 @@
-import { env } from 'cloudflare:workers';
 import { NextResponse } from 'next/server';
 import { apiUser, fail } from '../../../../../lib/api';
 import { encryptSecret } from '../../../../../lib/encryption';
 import { GoogleAdsClient, MccService } from '../../../../../services/google-ads';
-
-async function ensureTable() {
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS google_connections (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, google_email TEXT NOT NULL, refresh_token_encrypted TEXT NOT NULL, access_token_encrypted TEXT, expires_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`).run();
-  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_google_connections_user_id ON google_connections(user_id)`).run();
-}
+import { prisma } from '../../../../../lib/prisma';
 
 export async function GET(request: Request) {
   const url = new URL(request.url); const user = await apiUser();
@@ -23,7 +18,7 @@ export async function GET(request: Request) {
   const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{authorization:`Bearer ${token.access_token}`}});
   const profile = await profileResponse.json() as {email?:string};
   const accessible = await new MccService(new GoogleAdsClient({accessToken:token.access_token,developerToken:process.env.GOOGLE_DEVELOPER_TOKEN!})).listAccessibleCustomers();
-  await ensureTable(); const now=Date.now(); const id=crypto.randomUUID();
-  await env.DB.prepare(`INSERT INTO google_connections (id,user_id,google_email,refresh_token_encrypted,access_token_encrypted,expires_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`).bind(id,user.id,profile.email||user.email,await encryptSecret(token.refresh_token),await encryptSecret(token.access_token),now+token.expires_in*1000,now,now).run();
+  await prisma.user.upsert({ where: { id: user.id }, update: { email: user.email, name: user.name }, create: { id: user.id, email: user.email, name: user.name } });
+  await prisma.googleConnection.create({ data: { userId:user.id, googleEmail:profile.email||user.email, refreshTokenEncrypted:await encryptSecret(token.refresh_token), accessTokenEncrypted:await encryptSecret(token.access_token), expiresAt:new Date(Date.now()+token.expires_in*1000) } });
   const response = NextResponse.redirect(`${origin}/?connected=1&customers=${accessible.resourceNames?.length||0}`); response.cookies.delete('google_ads_oauth_state'); return response;
 }

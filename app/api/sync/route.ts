@@ -1,3 +1,18 @@
-import { z } from 'zod'; import { env } from 'cloudflare:workers'; import { apiUser, fail, ok } from '../../../lib/api'; import { rateLimit } from '../../../lib/rate-limit';
+import { z } from 'zod';
+import { apiUser, fail, ok } from '../../../lib/api';
+import { rateLimit } from '../../../lib/rate-limit';
+import { hasPostgres, prisma } from '../../../lib/prisma';
+
 const schema=z.object({type:z.enum(['SYNC_MCC','SYNC_CUSTOMER_ACCOUNT','SYNC_CAMPAIGNS','SYNC_AD_GROUPS','SYNC_KEYWORDS','SYNC_METRICS']),targetIds:z.array(z.string()).min(1).max(100)});
-export async function POST(request:Request){const user=await apiUser();if(!user)return fail('UNAUTHORIZED','Vui lòng đăng nhập.',401);if(!rateLimit(user.id,10,60_000))return fail('RATE_LIMITED','Bạn thao tác quá nhanh. Vui lòng thử lại sau.',429);const parsed=schema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return fail('INVALID_ARGUMENT','Yêu cầu đồng bộ không hợp lệ.',422);const ids=parsed.data.targetIds.map(()=>crypto.randomUUID());if(user.demo)return ok({jobIds:ids,status:'PENDING',demo:true},202);await env.DB.batch(ids.map((id,index)=>env.DB.prepare('INSERT INTO sync_jobs (id,type,status,customer_account_id,progress,created_at) VALUES (?,?,?,?,?,?)').bind(id,parsed.data.type,'PENDING',parsed.data.targetIds[index],0,Date.now())));return ok({jobIds:ids,status:'PENDING'},202)}
+
+export async function POST(request:Request){
+  const user=await apiUser();
+  if(!user)return fail('UNAUTHORIZED','Vui lòng đăng nhập.',401);
+  if(!rateLimit(user.id,10,60_000))return fail('RATE_LIMITED','Bạn thao tác quá nhanh. Vui lòng thử lại sau.',429);
+  const parsed=schema.safeParse(await request.json().catch(()=>null));
+  if(!parsed.success)return fail('INVALID_ARGUMENT','Yêu cầu đồng bộ không hợp lệ.',422);
+  const ids=parsed.data.targetIds.map(()=>crypto.randomUUID());
+  if(user.demo||!hasPostgres())return ok({jobIds:ids,status:'PENDING',demo:true},202);
+  await prisma.syncJob.createMany({data:ids.map((id,index)=>({id,type:parsed.data.type,status:'PENDING',customerAccountId:parsed.data.targetIds[index],progress:0}))});
+  return ok({jobIds:ids,status:'PENDING'},202);
+}

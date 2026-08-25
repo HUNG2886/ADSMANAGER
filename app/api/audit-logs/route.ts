@@ -1,2 +1,10 @@
-import { env } from 'cloudflare:workers'; import { auditLogs } from '../../../lib/demo-data'; import { apiUser, fail, ok } from '../../../lib/api';
-export async function GET(){const user=await apiUser();if(!user)return fail('UNAUTHORIZED','Vui lòng đăng nhập.',401);if(user.demo){try{const result=await env.DB.prepare('SELECT * FROM audit_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 50').bind(user.id).all();return ok([...result.results,...auditLogs])}catch{return ok(auditLogs)}}return ok((await env.DB.prepare('SELECT * FROM audit_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 100').bind(user.id).all()).results)}
+import { auditLogs } from '../../../lib/demo-data';
+import { apiUser, fail, ok } from '../../../lib/api';
+import { hasPostgres, prisma } from '../../../lib/prisma';
+
+export async function GET() {
+  const user = await apiUser();
+  if (!user) return fail('UNAUTHORIZED', 'Vui lòng đăng nhập.', 401);
+  if (user.demo || !hasPostgres()) return ok(auditLogs);
+  return ok(await prisma.auditLog.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 100 }));
+}

@@ -67,7 +67,7 @@ export function DashboardApp({ user }: { user: { name: string; email: string } |
     setIsMutating(true); setMutationError('');
     try {
       const response = await fetch('/api/campaigns', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, status }) });
-      const payload = await response.json();
+      const payload = await response.json() as { error?: { message?: string } };
       if (!response.ok) throw new Error(payload.error?.message ?? 'Không thể cập nhật chiến dịch.');
       setCampaigns(current => current.map(item => item.id === id ? { ...item, status } : item));
       setConfirm(null); setToast(status === 'ENABLED' ? 'Đã bật chiến dịch.' : 'Đã tạm dừng chiến dịch.'); setTimeout(() => setToast(''), 3200);
