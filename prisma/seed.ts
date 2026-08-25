@@ -1,9 +1,17 @@
-import { PrismaClient, AccountStatus, CampaignStatus, Role } from '@prisma/client';
+import { PrismaClient, AccountStatus, CampaignStatus, Role, UserStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const user = await prisma.user.upsert({ where: { email: 'demo@adsmanager.local' }, update: {}, create: { email: 'demo@adsmanager.local', name: 'Demo Admin', role: Role.ADMIN } });
-  const connection = await prisma.googleConnection.create({ data: { userId: user.id, googleEmail: 'demo@adsmanager.local', refreshTokenEncrypted: 'DEMO_ENCRYPTED_TOKEN' } });
+  const adminEmail=(process.env.DEFAULT_ADMIN_EMAIL||'admin@example.com').trim().toLowerCase();
+  const staffEmail=(process.env.DEFAULT_STAFF_EMAIL||'staff@example.com').trim().toLowerCase();
+  const adminPassword=process.env.DEFAULT_ADMIN_PASSWORD;
+  const staffPassword=process.env.DEFAULT_STAFF_PASSWORD;
+  if(!adminPassword||!staffPassword)throw new Error('DEFAULT_ADMIN_PASSWORD and DEFAULT_STAFF_PASSWORD are required for seeding.');
+  const [adminPasswordHash,staffPasswordHash]=await Promise.all([bcrypt.hash(adminPassword,12),bcrypt.hash(staffPassword,12)]);
+  const user = await prisma.user.upsert({ where: { email: adminEmail }, update: {name:'System Admin',passwordHash:adminPasswordHash,role:Role.ADMIN,status:UserStatus.ACTIVE}, create: { email: adminEmail, name: 'System Admin', passwordHash:adminPasswordHash, role: Role.ADMIN, status:UserStatus.ACTIVE } });
+  await prisma.user.upsert({where:{email:staffEmail},update:{name:'Demo Staff',passwordHash:staffPasswordHash,role:Role.STAFF,status:UserStatus.ACTIVE},create:{email:staffEmail,name:'Demo Staff',passwordHash:staffPasswordHash,role:Role.STAFF,status:UserStatus.ACTIVE}});
+  const connection = await prisma.googleConnection.create({ data: { userId: user.id, googleEmail: adminEmail, refreshTokenEncrypted: 'DEMO_ENCRYPTED_TOKEN' } });
   const mccs = await Promise.all(Array.from({length:3},(_,i)=>prisma.mCC.create({data:{userId:user.id,connectionId:connection.id,customerId:`100000000${i}`,name:`Demo MCC ${i+1}`,currency:'VND',timezone:'Asia/Ho_Chi_Minh',status:'CONNECTED'}})));
   const accounts=[];
   for(let i=0;i<20;i++) accounts.push(await prisma.customerAccount.create({data:{mccId:mccs[i%3].id,customerId:`20000000${String(i).padStart(2,'0')}`,name:`Demo Account ${i+1}`,currency:'VND',timezone:'Asia/Ho_Chi_Minh',status:i===18?AccountStatus.SUSPENDED:AccountStatus.ENABLED}}));

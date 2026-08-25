@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { getChatGPTUser } from '../app/chatgpt-auth';
 import { hasPostgres, prisma } from './prisma';
-import { readSessionToken, SESSION_COOKIE, type AppRole, type SessionUser } from './session';
+import { readSessionToken, sessionIsActive, SESSION_COOKIE, type AppRole, type SessionUser } from './session';
 
 export type { AppRole, SessionUser } from './session';
 const BCRYPT_ROUNDS = 12;
@@ -18,7 +18,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   if (session) {
     if (!hasPostgres()) return { id: session.id, email: session.email, name: session.name, role: session.role, sessionVersion: session.sessionVersion };
     const stored = await prisma.user.findUnique({ where: { id: session.id }, select: { id: true, email: true, name: true, role: true, status: true, sessionVersion: true } }).catch(() => null);
-    if (!stored || stored.status !== 'ACTIVE' || stored.sessionVersion !== session.sessionVersion) return null;
+    if (!sessionIsActive(session,stored)) return null;
     return { id: stored.id, email: stored.email, name: stored.name || stored.email, role: roleOf(stored.role), sessionVersion: stored.sessionVersion };
   }
 

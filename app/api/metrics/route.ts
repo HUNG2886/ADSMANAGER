@@ -1,2 +1,3 @@
-import { metrics } from '../../../lib/demo-data'; import { apiUser, fail, ok } from '../../../lib/api';
-export async function GET(){return await apiUser()?ok(metrics):fail('UNAUTHORIZED','Vui lòng đăng nhập.',401)}
+import { metrics } from '../../../lib/demo-data'; import { ok } from '../../../lib/api';
+import { PERMISSIONS } from '../../../lib/permissions'; import { requirePermission } from '../../../lib/rbac';
+export async function GET(){const access=await requirePermission(PERMISSIONS.VIEW_ANALYTICS);return access.error?access.error:ok(metrics)}

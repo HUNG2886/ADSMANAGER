@@ -54,6 +54,11 @@ export function readSessionToken(token: string | undefined): SessionPayload | nu
   }
 }
 
+type StoredSessionRecord={id:string;status:string;sessionVersion:number};
+export function sessionIsActive(session: Pick<SessionUser,'id'|'sessionVersion'>, stored: StoredSessionRecord | null): stored is StoredSessionRecord {
+  return Boolean(stored && stored.id === session.id && stored.status === 'ACTIVE' && stored.sessionVersion === session.sessionVersion);
+}
+
 export function sessionCookieOptions(remember = false) {
   return { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, path: '/', maxAge: remember ? REMEMBERED_SESSION_AGE : SHORT_SESSION_AGE, priority: 'high' as const };
 }

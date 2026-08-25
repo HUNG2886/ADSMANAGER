@@ -26,7 +26,7 @@ export function LoginForm() {
     <section className="login-story">
       <div className="login-brand"><span className="brand-mark">A</span><span>Ads Manager <b>Pro</b></span></div>
       <div className="login-copy"><p className="login-eyebrow">MULTI-MCC CONTROL CENTER</p><h1>Một nơi để vận hành toàn bộ hệ thống quảng cáo.</h1><p>Đăng nhập để quản lý MCC, theo dõi hiệu suất và phối hợp cùng đội ngũ theo đúng quyền được cấp.</p></div>
-      <div className="role-preview"><article><span><ShieldCheck size={18}/></span><div><strong>Quản trị viên</strong><p>Toàn quyền hệ thống, kết nối MCC và quản lý thành viên.</p></div></article><article><span><Users size={18}/></span><div><strong>Cộng tác viên</strong><p>Theo dõi dữ liệu và vận hành chiến dịch trong phạm vi được phép.</p></div></article></div>
+      <div className="role-preview"><article><span><ShieldCheck size={18}/></span><div><strong>Quản trị viên</strong><p>Toàn quyền hệ thống, kết nối MCC và quản lý thành viên.</p></div></article><article><span><Users size={18}/></span><div><strong>Cộng tác viên</strong><p>Chỉ xem dữ liệu, báo cáo và nhật ký trong phạm vi được cấp.</p></div></article></div>
       <small className="login-footnote">Bảo vệ phiên bằng cookie HttpOnly · Tự động hết hạn sau 12 giờ</small>
     </section>
     <section className="login-panel"><div className="login-card"><span className="login-lock"><LockKeyhole size={21}/></span><p className="login-eyebrow">TRUY CẬP BẢO MẬT</p><h2>Đăng nhập hệ thống</h2><p className="login-intro">Sử dụng tài khoản do quản trị viên cấp.</p>
