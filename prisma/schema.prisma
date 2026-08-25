@@ -17,6 +17,12 @@ enum UserStatus {
   SUSPENDED
 }
 
+enum GoogleConnectionStatus {
+  CONNECTED
+  REAUTH_REQUIRED
+  DISCONNECTED
+}
+
 enum AccountStatus {
   ENABLED
   SUSPENDED
@@ -84,13 +90,20 @@ model GoogleConnection {
   userId String
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   googleEmail String
-  refreshTokenEncrypted String
+  refreshTokenEncrypted String?
   accessTokenEncrypted String?
   expiresAt DateTime?
+  status GoogleConnectionStatus @default(CONNECTED)
+  lastRefreshedAt DateTime?
+  lastSyncAt DateTime?
+  lastError String?
+  disconnectedAt DateTime?
   mccs MCC[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@unique([userId, googleEmail])
   @@index([userId])
+  @@index([status])
 }
 
 model MCC {
@@ -100,6 +113,11 @@ model MCC {
   connectionId String
   connection GoogleConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   customerId String
+  parentCustomerId String?
+  loginCustomerId String
+  manager Boolean @default(true)
+  level Int @default(0)
+  testAccount Boolean @default(false)
   name String
   currency String?
   timezone String?
@@ -110,7 +128,7 @@ model MCC {
   syncJobs SyncJob[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  @@unique([userId, customerId])
+  @@unique([connectionId, customerId])
   @@index([userId])
   @@index([customerId])
   @@index([status])
@@ -121,6 +139,11 @@ model CustomerAccount {
   mccId String
   mcc MCC @relation(fields: [mccId], references: [id], onDelete: Cascade)
   customerId String
+  parentCustomerId String?
+  loginCustomerId String
+  manager Boolean @default(false)
+  level Int @default(1)
+  testAccount Boolean @default(false)
   name String
   currency String?
   timezone String?
@@ -142,6 +165,7 @@ model Campaign {
   customerAccountId String
   customerAccount CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
   campaignId String
+  budgetId String?
   name String
   status CampaignStatus
   type String

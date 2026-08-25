@@ -7,8 +7,7 @@ export function fail(code: string, message: string, status = 400) { return NextR
 export async function apiUser() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const demo = process.env.DEMO_MODE === 'true' || !process.env.GOOGLE_CLIENT_ID;
-  return { ...user, demo };
+  return user;
 }
 
 export function requestIp(request: Request) { return request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null; }

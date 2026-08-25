@@ -8,4 +8,4 @@ export function proxy(request:NextRequest){
   return NextResponse.next();
 }
 
-export const config={matcher:['/dashboard/:path*','/mcc/:path*','/accounts/:path*','/campaigns/:path*','/analytics/:path*','/profile','/admin/:path*']};
+export const config={matcher:['/dashboard/:path*','/google-ads/:path*','/mcc/:path*','/accounts/:path*','/campaigns/:path*','/analytics/:path*','/profile','/admin/:path*']};

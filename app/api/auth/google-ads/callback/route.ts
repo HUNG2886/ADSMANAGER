@@ -1,26 +1,33 @@
-import { NextResponse } from 'next/server';
-import { fail } from '../../../../../lib/api';
-import { encryptSecret } from '../../../../../lib/encryption';
-import { GoogleAdsClient, MccService } from '../../../../../services/google-ads';
-import { prisma } from '../../../../../lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { requestIp } from '../../../../../lib/api';
+import { writeAudit } from '../../../../../lib/audit';
 import { PERMISSIONS } from '../../../../../lib/permissions';
 import { requirePermission } from '../../../../../lib/rbac';
+import { exchangeGoogleAuthorizationCode, getGoogleProfile, GoogleAdsError, syncGoogleConnection, upsertGoogleConnection } from '../../../../../services/google-ads';
 
-export async function GET(request: Request) {
-  const url = new URL(request.url); const access=await requirePermission(PERMISSIONS.CONNECT_MCC);if(access.error)return access.error;const user=access.user;
-  if(user.demo)return fail('AUTH_REQUIRED','Hãy tắt DEMO_MODE trước khi kết nối Google Ads.',409);
-  const cookieState = request.headers.get('cookie')?.split(';').map(x=>x.trim()).find(x=>x.startsWith('google_ads_oauth_state='))?.split('=')[1];
-  const state = url.searchParams.get('state'); const code = url.searchParams.get('code');
-  if (!state || state !== cookieState || !code) return fail('OAUTH_STATE_INVALID', 'Yêu cầu OAuth không hợp lệ hoặc đã hết hạn.', 400);
-  const origin = process.env.NEXTAUTH_URL || url.origin;
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method:'POST', headers:{'content-type':'application/x-www-form-urlencoded'}, body:new URLSearchParams({ code, client_id:process.env.GOOGLE_CLIENT_ID!, client_secret:process.env.GOOGLE_CLIENT_SECRET!, redirect_uri:`${origin}/api/auth/google-ads/callback`, grant_type:'authorization_code' }) });
-  if (!tokenResponse.ok) return fail('OAUTH_EXCHANGE_FAILED', 'Không thể hoàn tất kết nối Google.', 400);
-  const token = await tokenResponse.json() as { access_token:string;refresh_token?:string;expires_in:number };
-  if (!token.refresh_token) return fail('REFRESH_TOKEN_MISSING', 'Google không trả về refresh token. Hãy thu hồi quyền và kết nối lại.', 400);
-  const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{authorization:`Bearer ${token.access_token}`}});
-  const profile = await profileResponse.json() as {email?:string};
-  const accessible = await new MccService(new GoogleAdsClient({accessToken:token.access_token,developerToken:process.env.GOOGLE_DEVELOPER_TOKEN!})).listAccessibleCustomers();
-  await prisma.user.upsert({ where: { id: user.id }, update: { email: user.email, name: user.name }, create: { id: user.id, email: user.email, name: user.name } });
-  await prisma.googleConnection.create({ data: { userId:user.id, googleEmail:profile.email||user.email, refreshTokenEncrypted:await encryptSecret(token.refresh_token), accessTokenEncrypted:await encryptSecret(token.access_token), expiresAt:new Date(Date.now()+token.expires_in*1000) } });
-  const response = NextResponse.redirect(`${origin}/?connected=1&customers=${accessible.resourceNames?.length||0}`); response.cookies.delete('google_ads_oauth_state'); return response;
+function oauthRedirect(request:NextRequest,params:Record<string,string>){
+  const target=new URL('/google-ads',request.url);Object.entries(params).forEach(([key,value])=>target.searchParams.set(key,value));
+  const response=NextResponse.redirect(target);response.cookies.delete('google_ads_oauth_state');return response;
+}
+
+export async function GET(request:NextRequest){
+  const access=await requirePermission(PERMISSIONS.CONNECT_MCC);if(access.error)return access.error;
+  const errorParam=request.nextUrl.searchParams.get('error');
+  if(errorParam)return oauthRedirect(request,{error:errorParam==='access_denied'?'OAUTH_CANCELLED':'OAUTH_FAILED'});
+  const state=request.nextUrl.searchParams.get('state');const code=request.nextUrl.searchParams.get('code');
+  const expected=request.cookies.get('google_ads_oauth_state')?.value;
+  if(!state||!expected||state!==expected||!code)return oauthRedirect(request,{error:'OAUTH_STATE_INVALID'});
+
+  try{
+    const token=await exchangeGoogleAuthorizationCode(code,request.url);
+    const profile=await getGoogleProfile(token.access_token);
+    if(!profile.email)throw new GoogleAdsError('GOOGLE_EMAIL_MISSING','Google không trả về địa chỉ email.',400);
+    const connection=await upsertGoogleConnection({userId:access.user.id,googleEmail:profile.email,token});
+    const result=await syncGoogleConnection(connection.id);
+    await writeAudit({userId:access.user.id,userEmail:access.user.email,userName:access.user.name,action:'GOOGLE_CONNECTION_SYNCED',entityType:'GoogleConnection',entityId:connection.id,metadata:{googleEmail:profile.email,mccCount:result.mccCount,accountCount:result.accountCount},ipAddress:requestIp(request)});
+    return oauthRedirect(request,{connected:'1',mcc:String(result.mccCount),accounts:String(result.accountCount)});
+  }catch(error){
+    const code=error instanceof GoogleAdsError?error.code:'GOOGLE_CONNECTION_FAILED';
+    return oauthRedirect(request,{error:code});
+  }
 }

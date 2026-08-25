@@ -1,3 +1,2 @@
-import { metrics } from '../../../lib/demo-data'; import { ok } from '../../../lib/api';
-import { PERMISSIONS } from '../../../lib/permissions'; import { requirePermission } from '../../../lib/rbac';
-export async function GET(){const access=await requirePermission(PERMISSIONS.VIEW_ANALYTICS);return access.error?access.error:ok(metrics)}
+import { allowedMccIds } from '@/lib/data-access';import { ok } from '@/lib/api';import { prisma } from '@/lib/prisma';import { PERMISSIONS } from '@/lib/permissions';import { requirePermission } from '@/lib/rbac';
+export async function GET(){const access=await requirePermission(PERMISSIONS.VIEW_ANALYTICS);if(access.error)return access.error;const allowed=await allowedMccIds(access.user);const items=await prisma.dailyMetric.findMany({where:{customerAccount:{mcc:allowed===null?{}:{id:{in:allowed}}}},orderBy:{date:'desc'},take:1000});return ok(items.map(item=>({...item,impressions:item.impressions.toString(),clicks:item.clicks.toString(),cost:Number(item.cost),conversions:Number(item.conversions),conversionValue:Number(item.conversionValue),ctr:Number(item.ctr),averageCpc:Number(item.averageCpc)})))}

@@ -1,7 +1,6 @@
 import { friendlyGoogleAdsError } from './errors';
 
-export const GOOGLE_ADS_API_VERSION = 'v25';
-const API_ROOT = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}`;
+export const GOOGLE_ADS_API_VERSION = process.env.GOOGLE_ADS_API_VERSION || 'v25';
 
 export type GoogleAdsClientOptions = { accessToken: string; developerToken: string; loginCustomerId?: string };
 
@@ -14,7 +13,7 @@ export class GoogleAdsClient {
     headers.set('developer-token', this.options.developerToken);
     headers.set('content-type', 'application/json');
     if (this.options.loginCustomerId) headers.set('login-customer-id', normalizeCustomerId(this.options.loginCustomerId));
-    const response = await fetch(`${API_ROOT}${path}`, { ...init, headers });
+    const response = await fetch(`https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}${path}`, { ...init, headers, cache: 'no-store' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       if ((response.status === 429 || response.status >= 500) && attempt < 3) {
@@ -28,11 +27,3 @@ export class GoogleAdsClient {
 }
 
 export function normalizeCustomerId(value: string) { return value.replace(/\D/g, ''); }
-
-export async function refreshGoogleAccessToken(refreshToken: string) {
-  const clientId = process.env.GOOGLE_CLIENT_ID; const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) throw new Error('Thiếu cấu hình Google OAuth.');
-  const response = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' }) });
-  if (!response.ok) throw new Error('Không thể làm mới kết nối Google.');
-  return response.json() as Promise<{ access_token: string; expires_in: number; token_type: string }>;
-}

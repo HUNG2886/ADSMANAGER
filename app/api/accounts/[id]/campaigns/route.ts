@@ -1,6 +1,2 @@
-import { accounts,campaigns } from '@/lib/demo-data';
-import { canAccessMcc } from '@/lib/data-access';
-import { fail,ok } from '@/lib/api';
-import { requireReadAccess } from '@/lib/rbac';
-
-export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){const access=await requireReadAccess();if(access.error)return access.error;const{id}=await params;const account=accounts.find(value=>value.id===id);if(!account)return fail('NOT_FOUND','Không tìm thấy tài khoản.',404);if(!await canAccessMcc(access.user,account.mccId))return fail('FORBIDDEN','Bạn không có quyền xem tài khoản này.',403);return ok(campaigns.filter(item=>item.accountId===id))}
+import { canAccessAccount } from '@/lib/data-access';import { fail,ok } from '@/lib/api';import { prisma } from '@/lib/prisma';import { requireReadAccess } from '@/lib/rbac';
+export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){const access=await requireReadAccess();if(access.error)return access.error;const{id}=await params;if(!await canAccessAccount(access.user,id))return fail('FORBIDDEN','Bạn không có quyền xem tài khoản này.',403);const items=await prisma.campaign.findMany({where:{customerAccountId:id},orderBy:{name:'asc'}});return ok(items.map(item=>({...item,budget:Number(item.budget)})))}

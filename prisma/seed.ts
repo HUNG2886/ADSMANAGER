@@ -1,7 +1,9 @@
 import { Prisma, PrismaClient, Role, UserStatus } from '@prisma/client';
+import { scopedDatabaseUrl } from '../lib/database-url';
 import { hashPassword, passwordNeedsRehash, verifyPassword } from '../lib/password';
 
-const prisma = new PrismaClient();
+const datasourceUrl=scopedDatabaseUrl();
+const prisma = new PrismaClient(datasourceUrl?{datasourceUrl}:undefined);
 
 function required(name:string){
   const value=process.env[name]?.trim();

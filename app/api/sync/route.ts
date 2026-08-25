@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { fail, ok } from '../../../lib/api';
 import { rateLimit } from '../../../lib/rate-limit';
-import { hasPostgres, prisma } from '../../../lib/prisma';
+import { prisma } from '../../../lib/prisma';
 import { PERMISSIONS } from '../../../lib/permissions';
 import { requirePermission } from '../../../lib/rbac';
 
@@ -12,8 +12,12 @@ export async function POST(request:Request){
   if(!rateLimit(user.id,10,60_000))return fail('RATE_LIMITED','Bạn thao tác quá nhanh. Vui lòng thử lại sau.',429);
   const parsed=schema.safeParse(await request.json().catch(()=>null));
   if(!parsed.success)return fail('INVALID_ARGUMENT','Yêu cầu đồng bộ không hợp lệ.',422);
-  const ids=parsed.data.targetIds.map(()=>crypto.randomUUID());
-  if(user.demo||!hasPostgres())return ok({jobIds:ids,status:'PENDING',demo:true},202);
-  await prisma.syncJob.createMany({data:ids.map((id,index)=>({id,type:parsed.data.type,status:'PENDING',customerAccountId:parsed.data.targetIds[index],progress:0}))});
+  const isMcc=parsed.data.type==='SYNC_MCC';
+  const existing=isMcc
+    ?await prisma.mCC.findMany({where:{id:{in:parsed.data.targetIds}},select:{id:true}})
+    :await prisma.customerAccount.findMany({where:{id:{in:parsed.data.targetIds}},select:{id:true}});
+  if(existing.length!==new Set(parsed.data.targetIds).size)return fail('TARGET_NOT_FOUND','Một hoặc nhiều đối tượng đồng bộ không tồn tại.',404);
+  const ids=existing.map(()=>crypto.randomUUID());
+  await prisma.syncJob.createMany({data:existing.map((target,index)=>({id:ids[index],type:parsed.data.type,status:'PENDING',mccId:isMcc?target.id:null,customerAccountId:isMcc?null:target.id,progress:0}))});
   return ok({jobIds:ids,status:'PENDING'},202);
 }
