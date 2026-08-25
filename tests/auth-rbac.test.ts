@@ -40,10 +40,15 @@ describe('permission matrix',()=>{
     process.env.STAFF_EXPORT_ENABLED='true';const permissions=permissionsFor('STAFF');
     expect(permissions).toContain(PERMISSIONS.VIEW_CAMPAIGN);
     expect(permissions).toContain(PERMISSIONS.VIEW_AUDIT_LOGS);
+    expect(permissions).toContain(PERMISSIONS.VIEW_CLIENTS);
+    expect(permissions).toContain(PERMISSIONS.VIEW_ACCOUNT_NOTES);
     expect(permissions).toContain(PERMISSIONS.EXPORT_DATA);
     expect(permissions).not.toContain(PERMISSIONS.SYNC_DATA);
     expect(permissions).not.toContain(PERMISSIONS.UPDATE_CAMPAIGN);
     expect(permissions).not.toContain(PERMISSIONS.CONNECT_MCC);
+    expect(permissions).not.toContain(PERMISSIONS.MANAGE_CLIENTS);
+    expect(permissions).not.toContain(PERMISSIONS.ASSIGN_ACCOUNTS);
+    expect(permissions).not.toContain(PERMISSIONS.MANAGE_ACCOUNT_NOTES);
     expect(permissions).not.toContain(PERMISSIONS.MANAGE_USERS);
   });
 

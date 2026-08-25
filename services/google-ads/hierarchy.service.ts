@@ -1,4 +1,5 @@
 import { GoogleAdsClient, normalizeCustomerId } from './client';
+import { mapWithConcurrency } from '../../lib/concurrency';
 import { CustomerService, type GoogleCustomer, type GoogleCustomerClient } from './customer.service';
 import { MccService } from './mcc.service';
 import { logGoogleAds } from './safe-logger';
@@ -46,17 +47,17 @@ export class HierarchyService {
     const mccs: HierarchyMcc[] = [];
     const accounts: HierarchyAccount[] = [];
 
-    for (const resourceName of resourceNames.resourceNames ?? []) {
+    await mapWithConcurrency(resourceNames.resourceNames ?? [], 3, async resourceName => {
       const rootId = normalizeCustomerId(resourceName);
       logGoogleAds('accessible_customer_probe',{clientCustomerId:rootId,loginCustomerId:null});
       const root = await new CustomerService(baseClient).getCustomer(rootId);
-      if (!root) continue;
+      if (!root) return;
 
       if (!root.manager) {
         const direct = snapshot(root, rootId, { parentCustomerId: null, loginCustomerId: rootId, level: 0 });
         mccs.push(direct);
         accounts.push({ ...direct, parentManagerCustomerId: direct.customerId });
-        continue;
+        return;
       }
 
       const rootMcc = snapshot(root, rootId, { parentCustomerId: null, loginCustomerId: rootId, level: 0 });
@@ -84,7 +85,7 @@ export class HierarchyService {
           }
         }
       }
-    }
+    });
 
     return {
       accessibleCustomerIds,

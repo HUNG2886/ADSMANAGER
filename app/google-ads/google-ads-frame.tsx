@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { BarChart3,ChevronRight,LayoutDashboard,Link2,LogOut,Network,PanelLeft,Rows3,ShieldCheck,Users,X } from 'lucide-react';
+import { BarChart3,Building2,ChevronRight,LayoutDashboard,Link2,LogOut,Network,PanelLeft,Rows3,ShieldCheck,Users,X } from 'lucide-react';
 import { useState } from 'react';
 
 type FrameUser={name:string;email:string;role:'ADMIN'|'STAFF'};
@@ -12,6 +12,7 @@ const links=[
   {href:'/google-ads/accounts',label:'Accounts',icon:Rows3},
   {href:'/google-ads/campaigns',label:'Campaigns',icon:BarChart3},
   {href:'/google-ads/analytics',label:'Analytics',icon:BarChart3},
+  {href:'/google-ads/clients',label:'Clients CRM',icon:Building2},
 ];
 
 export function GoogleAdsFrame({user,children}:{user:FrameUser;children:React.ReactNode}){

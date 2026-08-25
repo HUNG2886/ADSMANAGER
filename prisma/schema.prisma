@@ -55,9 +55,15 @@ enum SyncJobType {
   BULK_ACTION
 }
 
+enum ClientStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 model User {
   id String @id @default(cuid())
   email String @unique
+  googleSubject String? @unique
   name String?
   image String?
   passwordHash String?
@@ -68,6 +74,7 @@ model User {
   connections GoogleConnection[]
   mccs MCC[]
   mccPermissions UserMCCPermission[]
+  accountNotes AccountNote[]
   auditLogs AuditLog[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -151,6 +158,8 @@ model CustomerAccount {
   lastSyncAt DateTime?
   campaigns Campaign[]
   metrics DailyMetric[]
+  clientAssignment ClientAccountAssignment?
+  notes AccountNote[]
   syncJobs SyncJob[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -158,6 +167,47 @@ model CustomerAccount {
   @@index([mccId])
   @@index([customerId])
   @@index([status])
+}
+
+model Client {
+  id String @id @default(cuid())
+  name String
+  company String?
+  email String?
+  phone String?
+  website String?
+  status ClientStatus @default(ACTIVE)
+  notes String?
+  accountAssignments ClientAccountAssignment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([name])
+  @@index([email])
+  @@index([status])
+}
+
+model ClientAccountAssignment {
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  customerAccountId String @unique
+  customerAccount CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([clientId])
+}
+
+model AccountNote {
+  id String @id @default(cuid())
+  customerAccountId String
+  customerAccount CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  authorId String?
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  content String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([customerAccountId, createdAt])
+  @@index([authorId])
 }
 
 model Campaign {
