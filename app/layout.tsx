@@ -24,8 +24,8 @@ export const metadata: Metadata = {
     type: 'website',
     images: [{
       url: '/og.png',
-      width: 1254,
-      height: 1254,
+      width: 933,
+      height: 781,
       alt: 'David Agency logo',
     }],
   },

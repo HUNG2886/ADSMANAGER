@@ -13,13 +13,17 @@ export function BrandLogo({
   preload = false,
   variant = 'mark',
 }: BrandLogoProps) {
+  const asset = variant === 'mark'
+    ? { src: '/david-agency-mark.png', width: 712, height: 450 }
+    : { src: '/david-agency-logo.png', width: 933, height: 781 };
+
   return (
     <span className={`brand-logo brand-logo--${variant} ${className}`.trim()}>
       <Image
-        src="/david-agency-logo.png"
+        src={asset.src}
         alt={decorative ? '' : 'David Agency logo'}
-        width={1254}
-        height={1254}
+        width={asset.width}
+        height={asset.height}
         preload={preload}
         draggable={false}
       />
