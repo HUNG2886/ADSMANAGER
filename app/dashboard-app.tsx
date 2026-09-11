@@ -5,6 +5,7 @@ import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, T
 import { Activity, BarChart3, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign, Download, FileClock, Gauge, KeyRound, Layers3, LayoutDashboard, LogOut, Menu, Network, Pause, Pencil, Play, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Trash2, UserPlus, UserRound, Users, X, Zap } from 'lucide-react';
 import { accounts as initialAccounts, auditLogs, campaigns as sourceCampaigns, formatVnd, jobs, mccs, metrics, type CampaignStatus } from '../lib/demo-data';
 import { PERMISSIONS, type Permission } from '../lib/permissions';
+import { BrandLogo } from './brand-logo';
 
 type Section = 'overview' | 'mcc' | 'accounts' | 'campaigns' | 'analytics' | 'jobs' | 'team' | 'audit' | 'settings';
 type Campaign = typeof sourceCampaigns[number];
@@ -85,7 +86,7 @@ export function DashboardApp({ user, permissions, initialSection = 'overview' }:
   return <main className="app-shell">
     {mobileNav && <button className="nav-backdrop" onClick={() => setMobileNav(false)} aria-label="Đóng menu" />}
     <aside className={`sidebar ${mobileNav ? 'open' : ''}`}>
-      <div className="brand"><span className="brand-mark">DA</span><span>David Agency MCC Manager</span><button className="close-nav" onClick={() => setMobileNav(false)} aria-label="Đóng"><X size={18}/></button></div>
+      <div className="brand"><BrandLogo decorative /><span>David Agency MCC Manager</span><button className="close-nav" onClick={() => setMobileNav(false)} aria-label="Đóng"><X size={18}/></button></div>
       <nav>{navGroups.map(group => <div key={group.label}><p className="nav-label">{group.label}</p>{group.items.filter(item => !item.adminOnly || user.role === 'ADMIN').map(item => <button key={item.id} className={`nav-item ${section === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}><item.icon size={16}/><span>{item.label}</span>{item.badge && <i>{item.badge}</i>}</button>)}</div>)}</nav>
       <div className="sync-card"><div><span className="pulse"/> Hệ thống ổn định</div><p>Đồng bộ gần nhất</p><strong>2 phút trước</strong></div>
     </aside>

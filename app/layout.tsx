@@ -22,11 +22,18 @@ export const metadata: Metadata = {
     siteName: 'David Agency MCC Manager',
     url: '/',
     type: 'website',
+    images: [{
+      url: '/og.png',
+      width: 1254,
+      height: 1254,
+      alt: 'David Agency logo',
+    }],
   },
   twitter: {
     card: 'summary',
     title: 'David Agency MCC Manager',
     description: 'Google Ads MCC and connected client account management for authorized users.',
+    images: ['/og.png'],
   },
 };
 

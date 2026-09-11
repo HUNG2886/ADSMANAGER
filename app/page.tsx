@@ -9,6 +9,7 @@ import {
   Users,
 } from 'lucide-react';
 import { PublicFooter, PublicHeader } from './public-site-shell';
+import { BrandLogo } from './brand-logo';
 
 export const metadata: Metadata = {
   title: 'David Agency MCC Manager',
@@ -52,6 +53,7 @@ export default function HomePage() {
       <main>
         <section className="public-hero" aria-labelledby="home-title">
           <div className="public-hero-copy">
+            <BrandLogo className="public-hero-logo" variant="full" preload />
             <p className="public-eyebrow">AUTHORIZED GOOGLE ADS MANAGEMENT</p>
             <h1 id="home-title">David Agency MCC Manager</h1>
             <p className="public-lead">

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandLogo } from './brand-logo';
 
 export const APP_NAME = 'David Agency MCC Manager';
 export const SUPPORT_EMAIL = 'davidagency36@gmail.com';
@@ -7,7 +8,7 @@ export function PublicHeader() {
   return (
     <header className="public-header">
       <Link className="public-brand" href="/" aria-label={`${APP_NAME} home`}>
-        <span>DA</span>
+        <BrandLogo decorative />
         <strong>{APP_NAME}</strong>
       </Link>
       <nav aria-label="Public navigation">
@@ -24,8 +25,11 @@ export function PublicFooter() {
   return (
     <footer className="public-footer">
       <div>
-        <strong>{APP_NAME}</strong>
-        <p>Google Ads account management for authorized users.</p>
+        <BrandLogo variant="full" />
+        <div>
+          <strong>{APP_NAME}</strong>
+          <p>Google Ads account management for authorized users.</p>
+        </div>
       </div>
       <nav aria-label="Legal links">
         <Link href="/privacy-policy">Privacy Policy</Link>
