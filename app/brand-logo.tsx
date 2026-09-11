@@ -15,7 +15,7 @@ export function BrandLogo({
 }: BrandLogoProps) {
   const asset = variant === 'mark'
     ? { src: '/david-agency-mark.png', width: 712, height: 450 }
-    : { src: '/david-agency-logo.png', width: 933, height: 781 };
+    : { src: '/david-agency-logo-transparent.png', width: 933, height: 781 };
 
   return (
     <span className={`brand-logo brand-logo--${variant} ${className}`.trim()}>
