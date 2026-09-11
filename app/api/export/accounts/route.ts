@@ -16,5 +16,5 @@ export async function GET(){
   })];
   const csv='\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\n');
   await writeAudit({userId:access.user.id,userEmail:access.user.email,userName:access.user.name,action:'EXPORT_DATA',entityType:'Account',entityId:'all',metadata:{rowCount:accounts.length}});
-  return new Response(csv,{headers:{'content-type':'text/csv;charset=utf-8','content-disposition':'attachment; filename="ads-manager-accounts.csv"'}});
+  return new Response(csv,{headers:{'content-type':'text/csv;charset=utf-8','content-disposition':'attachment; filename="david-agency-mcc-accounts.csv"'}});
 }

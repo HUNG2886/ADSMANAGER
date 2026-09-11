@@ -1,4 +1,4 @@
-# Ads Manager Pro
+# David Agency MCC Manager
 
 Ứng dụng Next.js quản lý tập trung nhiều Google Ads Manager Accounts (MCC), customer accounts, campaigns, metrics và phân quyền STAFF. Giao diện production chỉ đọc dữ liệu đã đồng bộ từ Google Ads API; không trả dữ liệu mẫu.
 

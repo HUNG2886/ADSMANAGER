@@ -68,7 +68,7 @@ export function DashboardApp({ user, permissions, initialSection = 'overview' }:
     const response = await fetch('/api/export/accounts');
     if (!response.ok) { setToast('Bạn không có quyền xuất dữ liệu.'); return; }
     const blob = await response.blob();
-    const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'ads-manager-accounts.csv'; link.click(); URL.revokeObjectURL(url); setToast('Đã xuất báo cáo CSV.'); setTimeout(() => setToast(''), 3200);
+    const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'david-agency-mcc-accounts.csv'; link.click(); URL.revokeObjectURL(url); setToast('Đã xuất báo cáo CSV.'); setTimeout(() => setToast(''), 3200);
   }
   async function submitCampaign(id: string, status: CampaignStatus) {
     setIsMutating(true); setMutationError('');
@@ -85,7 +85,7 @@ export function DashboardApp({ user, permissions, initialSection = 'overview' }:
   return <main className="app-shell">
     {mobileNav && <button className="nav-backdrop" onClick={() => setMobileNav(false)} aria-label="Đóng menu" />}
     <aside className={`sidebar ${mobileNav ? 'open' : ''}`}>
-      <div className="brand"><span className="brand-mark">A</span><span>Ads Manager <b>Pro</b></span><button className="close-nav" onClick={() => setMobileNav(false)} aria-label="Đóng"><X size={18}/></button></div>
+      <div className="brand"><span className="brand-mark">DA</span><span>David Agency MCC Manager</span><button className="close-nav" onClick={() => setMobileNav(false)} aria-label="Đóng"><X size={18}/></button></div>
       <nav>{navGroups.map(group => <div key={group.label}><p className="nav-label">{group.label}</p>{group.items.filter(item => !item.adminOnly || user.role === 'ADMIN').map(item => <button key={item.id} className={`nav-item ${section === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}><item.icon size={16}/><span>{item.label}</span>{item.badge && <i>{item.badge}</i>}</button>)}</div>)}</nav>
       <div className="sync-card"><div><span className="pulse"/> Hệ thống ổn định</div><p>Đồng bộ gần nhất</p><strong>2 phút trước</strong></div>
     </aside>
@@ -98,7 +98,7 @@ export function DashboardApp({ user, permissions, initialSection = 'overview' }:
       </header>
 
       <div className="content">
-        <div className="page-heading"><div><p className="eyebrow">ADS MANAGER PRO</p><h1>{sectionTitles[section][0]}</h1><p>{sectionTitles[section][1]}</p></div><div className="heading-actions"><label className="date-select"><CalendarDays size={14}/><select value={range} onChange={e => setRange(e.target.value)}><option>Hôm nay</option><option>7 ngày qua</option><option>14 ngày qua</option><option>30 ngày qua</option><option>Tháng này</option></select><ChevronDown size={12}/></label>{section === 'mcc' && canMutate ? <button className="primary-btn" onClick={()=>{window.location.href='/api/auth/google-ads'}}><Plus size={14}/> Kết nối MCC</button> : canExport ? <button className="secondary-btn" onClick={()=>void exportCsv()}><Download size={14}/> Xuất dữ liệu</button> : <span className="read-only-chip"><ShieldCheck size={13}/> Chế độ chỉ xem</span>}</div></div>
+        <div className="page-heading"><div><p className="eyebrow">DAVID AGENCY MCC MANAGER</p><h1>{sectionTitles[section][0]}</h1><p>{sectionTitles[section][1]}</p></div><div className="heading-actions"><label className="date-select"><CalendarDays size={14}/><select value={range} onChange={e => setRange(e.target.value)}><option>Hôm nay</option><option>7 ngày qua</option><option>14 ngày qua</option><option>30 ngày qua</option><option>Tháng này</option></select><ChevronDown size={12}/></label>{section === 'mcc' && canMutate ? <button className="primary-btn" onClick={()=>{window.location.href='/api/auth/google-ads'}}><Plus size={14}/> Kết nối MCC</button> : canExport ? <button className="secondary-btn" onClick={()=>void exportCsv()}><Download size={14}/> Xuất dữ liệu</button> : <span className="read-only-chip"><ShieldCheck size={13}/> Chế độ chỉ xem</span>}</div></div>
         {!canMutate && <div className="read-only-banner"><ShieldCheck size={15}/><span>Tài khoản STAFF đang ở chế độ chỉ xem. Mọi thao tác thay đổi dữ liệu đều bị khóa.</span></div>}
         {section === 'overview' && <Overview onNavigate={navigate} isAdmin={canMutate}/>} 
         {section === 'mcc' && <MccView expanded={expandedMcc} setExpanded={setExpandedMcc} canMutate={canMutate}/>} 

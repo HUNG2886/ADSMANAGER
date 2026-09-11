@@ -13,20 +13,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
-  title: 'Ads Manager Pro | Multi-MCC Dashboard',
-  description: 'Quản lý tập trung nhiều MCC, tài khoản và chiến dịch Google Ads.',
+  metadataBase: new URL('https://davidagency.click'),
+  title: 'David Agency MCC Manager',
+  description: 'David Agency MCC Manager is a management platform for authorized users to manage Google Ads MCC accounts and connected client accounts.',
   openGraph: {
-    title: 'Ads Manager Pro',
-    description: 'Quản lý Multi-MCC tập trung',
-    images: [{ url: '/og.png', width: 1536, height: 864, alt: 'Ads Manager Pro — Quản lý Multi-MCC tập trung' }],
+    title: 'David Agency MCC Manager',
+    description: 'Google Ads MCC and connected client account management for authorized users.',
+    siteName: 'David Agency MCC Manager',
+    url: '/',
     type: 'website',
   },
   twitter: {
-    card: 'summary_large_image',
-    title: 'Ads Manager Pro',
-    description: 'Quản lý Multi-MCC tập trung',
-    images: ['/og.png'],
+    card: 'summary',
+    title: 'David Agency MCC Manager',
+    description: 'Google Ads MCC and connected client account management for authorized users.',
   },
 };
 
