@@ -1,15 +1,17 @@
 import type { Metadata } from 'next';
 import { LegalPage, SUPPORT_EMAIL } from '../public-site-shell';
+import { publicAlternates } from '../public-locales';
 
 export const metadata: Metadata = {
   title: 'Terms of Service | David Agency MCC Manager',
   description: 'Terms of Service for David Agency MCC Manager.',
-  alternates: { canonical: '/terms' },
+  alternates: publicAlternates('terms'),
 };
 
 export default function TermsPage() {
   return (
     <LegalPage
+      page="terms"
       title="Terms of Service for David Agency MCC Manager"
       intro="By using David Agency MCC Manager, you agree to these Terms of Service."
     >

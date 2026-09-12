@@ -1,15 +1,17 @@
 import type { Metadata } from 'next';
 import { LegalPage, SUPPORT_EMAIL } from '../public-site-shell';
+import { publicAlternates } from '../public-locales';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy | David Agency MCC Manager',
   description: 'Privacy Policy for David Agency MCC Manager.',
-  alternates: { canonical: '/privacy-policy' },
+  alternates: publicAlternates('privacy'),
 };
 
 export default function PrivacyPolicyPage() {
   return (
     <LegalPage
+      page="privacy"
       title="Privacy Policy for David Agency MCC Manager"
       intro="David Agency MCC Manager respects user privacy and is committed to protecting user information."
     >

@@ -1,40 +1,66 @@
 import Link from 'next/link';
 import { BrandLogo } from './brand-logo';
+import { publicRoute, type PublicLocale, type PublicPage } from './public-locales';
 
 export const APP_NAME = 'David Agency MCC Manager';
 export const SUPPORT_EMAIL = 'davidagency36@gmail.com';
 
-export function PublicHeader() {
+const shellCopy = {
+  en: {
+    home: 'Home', features: 'Features', privacy: 'Privacy Policy', terms: 'Terms of Service', signIn: 'Employee sign in',
+    publicNavigation: 'Public navigation', language: 'Language', legal: 'Legal links', description: 'Google Ads account management for authorized users.', contact: 'Contact',
+  },
+  vi: {
+    home: 'Trang chủ', features: 'Chức năng', privacy: 'Chính sách quyền riêng tư', terms: 'Điều khoản dịch vụ', signIn: 'Đăng nhập nhân viên',
+    publicNavigation: 'Điều hướng công khai', language: 'Ngôn ngữ', legal: 'Liên kết pháp lý', description: 'Quản lý tài khoản Google Ads dành cho người dùng được ủy quyền.', contact: 'Liên hệ',
+  },
+} as const;
+
+function LanguageSwitcher({ locale, page }: { locale: PublicLocale; page: PublicPage }) {
+  return (
+    <nav className="public-language" aria-label={shellCopy[locale].language}>
+      <Link href={publicRoute('en', page)} hrefLang="en" lang="en" aria-current={locale === 'en' ? 'page' : undefined}>EN</Link>
+      <Link href={publicRoute('vi', page)} hrefLang="vi" lang="vi" aria-current={locale === 'vi' ? 'page' : undefined}>VI</Link>
+    </nav>
+  );
+}
+
+export function PublicHeader({ locale = 'en', page = 'home' }: { locale?: PublicLocale; page?: PublicPage }) {
+  const text = shellCopy[locale];
   return (
     <header className="public-header">
-      <Link className="public-brand" href="/" aria-label={`${APP_NAME} home`}>
+      <Link className="public-brand" href={publicRoute(locale, 'home')} aria-label={`${APP_NAME} — ${text.home}`}>
         <BrandLogo decorative />
         <strong>{APP_NAME}</strong>
       </Link>
-      <nav aria-label="Public navigation">
-        <Link href="/#features">Features</Link>
-        <Link href="/privacy-policy">Privacy Policy</Link>
-        <Link href="/terms">Terms of Service</Link>
+      <nav className="public-navigation" aria-label={text.publicNavigation}>
+        <Link href={`${publicRoute(locale, 'home')}#features`}>{text.features}</Link>
+        <Link href={publicRoute(locale, 'privacy')}>{text.privacy}</Link>
+        <Link href={publicRoute(locale, 'terms')}>{text.terms}</Link>
       </nav>
-      <Link className="public-header-signin" href="/login">Employee sign in</Link>
+      <div className="public-header-actions">
+        <LanguageSwitcher locale={locale} page={page} />
+        <Link className="public-header-signin" href="/login">{text.signIn}</Link>
+      </div>
     </header>
   );
 }
 
-export function PublicFooter() {
+export function PublicFooter({ locale = 'en' }: { locale?: PublicLocale }) {
+  const text = shellCopy[locale];
   return (
     <footer className="public-footer">
       <div>
         <BrandLogo variant="full" />
         <div>
           <strong>{APP_NAME}</strong>
-          <p>Google Ads account management for authorized users.</p>
+          <p>{text.description}</p>
         </div>
       </div>
-      <nav aria-label="Legal links">
-        <Link href="/privacy-policy">Privacy Policy</Link>
-        <Link href="/terms">Terms of Service</Link>
-        <a href={`mailto:${SUPPORT_EMAIL}`}>Contact: {SUPPORT_EMAIL}</a>
+      <nav aria-label={text.legal}>
+        <Link href={publicRoute(locale, 'privacy')}>{text.privacy}</Link>
+        <Link href={publicRoute(locale, 'terms')}>{text.terms}</Link>
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{text.contact}: {SUPPORT_EMAIL}</a>
       </nav>
       <small>© {new Date().getFullYear()} {APP_NAME}</small>
     </footer>
@@ -45,14 +71,18 @@ export function LegalPage({
   title,
   intro,
   children,
+  locale = 'en',
+  page,
 }: {
   title: string;
   intro: string;
   children: React.ReactNode;
+  locale?: PublicLocale;
+  page: Extract<PublicPage, 'privacy' | 'terms'>;
 }) {
   return (
-    <div className="public-site" lang="en">
-      <PublicHeader />
+    <div className="public-site" lang={locale}>
+      <PublicHeader locale={locale} page={page} />
       <main className="legal-main">
         <article className="legal-document">
           <header>
@@ -63,7 +93,7 @@ export function LegalPage({
           <div className="legal-content">{children}</div>
         </article>
       </main>
-      <PublicFooter />
+      <PublicFooter locale={locale} />
     </div>
   );
 }
