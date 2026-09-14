@@ -1,6 +1,7 @@
 import { GoogleAdsClient, normalizeCustomerId } from './client';
 import { mapWithConcurrency } from '../../lib/concurrency';
 import { CustomerService, type GoogleCustomer, type GoogleCustomerClient } from './customer.service';
+import { googleAdsErrorDetails, GoogleAdsError } from './errors';
 import { MccService } from './mcc.service';
 import { logGoogleAds } from './safe-logger';
 
@@ -18,6 +19,12 @@ export type HierarchyMcc = {
 };
 
 export type HierarchyAccount = HierarchyMcc & { parentManagerCustomerId: string };
+export type HierarchyIssue = {
+  customerId: string;
+  loginCustomerId: string | null;
+  phase: 'ROOT_CUSTOMER' | 'MANAGER_CHILDREN';
+  error: ReturnType<typeof googleAdsErrorDetails>;
+};
 
 function snapshot(value: GoogleCustomer | GoogleCustomerClient, fallbackId: string, input: { parentCustomerId: string | null; loginCustomerId: string; level: number }): HierarchyMcc {
   const clientCustomer='clientCustomer' in value?value.clientCustomer:undefined;
@@ -46,11 +53,24 @@ export class HierarchyService {
     onAccessibleCustomers?.(accessibleCustomerIds);
     const mccs: HierarchyMcc[] = [];
     const accounts: HierarchyAccount[] = [];
+    const issues: HierarchyIssue[] = [];
+    let successfulRootProbes = 0;
+    let firstRootError: GoogleAdsError | undefined;
 
     await mapWithConcurrency(resourceNames.resourceNames ?? [], 3, async resourceName => {
       const rootId = normalizeCustomerId(resourceName);
       logGoogleAds('accessible_customer_probe',{clientCustomerId:rootId,loginCustomerId:null});
-      const root = await new CustomerService(baseClient).getCustomer(rootId);
+      let root: GoogleCustomer | null;
+      try {
+        root = await new CustomerService(baseClient).getCustomer(rootId);
+        successfulRootProbes += 1;
+      } catch (cause) {
+        if (!(cause instanceof GoogleAdsError)) throw cause;
+        firstRootError ??= cause;
+        issues.push({ customerId: rootId, loginCustomerId: null, phase: 'ROOT_CUSTOMER', error: googleAdsErrorDetails(cause) });
+        logGoogleAds('accessible_customer_probe_failed', { clientCustomerId: rootId, loginCustomerId: null, error: cause }, 'warn');
+        return;
+      }
       if (!root) return;
 
       if (!root.manager) {
@@ -71,7 +91,15 @@ export class HierarchyService {
         visited.add(manager.customerId);
         const managerClient = new GoogleAdsClient({ accessToken: this.accessToken, developerToken: this.developerToken, loginCustomerId: rootId });
         logGoogleAds('hierarchy_manager_query',{mccCustomerId:manager.customerId,clientCustomerId:manager.customerId,loginCustomerId:rootId});
-        const children = await new CustomerService(managerClient).listImmediateClients(manager.customerId);
+        let children: GoogleCustomerClient[];
+        try {
+          children = await new CustomerService(managerClient).listImmediateClients(manager.customerId);
+        } catch (cause) {
+          if (!(cause instanceof GoogleAdsError)) throw cause;
+          issues.push({ customerId: manager.customerId, loginCustomerId: rootId, phase: 'MANAGER_CHILDREN', error: googleAdsErrorDetails(cause) });
+          logGoogleAds('hierarchy_manager_query_failed', { mccCustomerId: manager.customerId, clientCustomerId: manager.customerId, loginCustomerId: rootId, error: cause }, 'warn');
+          continue;
+        }
         for (const child of children) {
           const childId = normalizeCustomerId(String(child.id || child.clientCustomer || ''));
           if (!childId || childId === manager.customerId || Number(child.level ?? 0) !== 1) continue;
@@ -87,10 +115,13 @@ export class HierarchyService {
       }
     });
 
+    if (accessibleCustomerIds.length > 0 && successfulRootProbes === 0 && firstRootError) throw firstRootError;
+
     return {
       accessibleCustomerIds,
       mccs: [...new Map(mccs.map(item => [item.customerId, item])).values()],
       accounts: [...new Map(accounts.map(item => [`${item.parentManagerCustomerId}:${item.customerId}`, item])).values()],
+      issues: issues.sort((a, b) => a.customerId.localeCompare(b.customerId)),
     };
   }
 }

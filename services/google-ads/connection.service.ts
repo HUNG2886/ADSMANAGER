@@ -128,9 +128,13 @@ export async function syncGoogleConnection(connectionId: string) {
       });
     }
 
-    await prisma.googleConnection.update({ where: { id: connectionId }, data: { status: 'CONNECTED', lastSyncAt: new Date(), lastError: null } });
+    const issueCount = hierarchy.issues.length;
+    const lastError = issueCount > 0
+      ? `Đã bỏ qua ${issueCount} customer không thể truy cập. Chạy Google Ads diagnostics để xem Customer ID và lỗi cụ thể.`
+      : null;
+    await prisma.googleConnection.update({ where: { id: connectionId }, data: { status: 'CONNECTED', lastSyncAt: new Date(), lastError } });
     logGoogleAds('connection_hierarchy_synced',{connectionId,googleEmail:connection.googleEmail,accessibleCustomerIds:hierarchy.accessibleCustomerIds});
-    return { mccCount: hierarchy.mccs.filter(item => item.manager).length, accountCount: hierarchy.accounts.length };
+    return { mccCount: hierarchy.mccs.filter(item => item.manager).length, accountCount: hierarchy.accounts.length, issueCount };
   } catch (error) {
     const message = error instanceof GoogleAdsError?formatGoogleAdsError(error):error instanceof Error ? error.message : 'Không thể đồng bộ Google Ads.';
     await prisma.googleConnection.update({ where: { id: connectionId }, data: { lastError: message.slice(0, 500) } }).catch(() => null);
