@@ -59,8 +59,8 @@ export function ConnectionActions({ id, status }: { id: string; status: string }
           setProgress(
             tr(
               locale,
-              `Đang đọc chiến dịch ${next.processed}/${next.total} tài khoản`,
-              `Loading campaigns from ${next.processed}/${next.total} accounts`,
+              `Đang kiểm tra quyền và đọc chiến dịch ${next.processed}/${next.total} tài khoản`,
+              `Checking access and loading campaigns from ${next.processed}/${next.total} accounts`,
             ),
           ),
       });

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'; import { GoogleAds
 import { CampaignService } from '../services/google-ads/campaign.service';
 import { CustomerService } from '../services/google-ads/customer.service';
 import { UserAccessService } from '../services/google-ads/user-access.service';
+import { ownershipResultFromError } from '../services/google-ads/account.service';
 const env={clientId:process.env.GOOGLE_CLIENT_ID,clientSecret:process.env.GOOGLE_CLIENT_SECRET,developerToken:process.env.GOOGLE_DEVELOPER_TOKEN,encryptionKey:process.env.ENCRYPTION_KEY,nextAuthUrl:process.env.NEXTAUTH_URL};
 afterEach(()=>{vi.restoreAllMocks();for(const[name,value]of Object.entries({GOOGLE_CLIENT_ID:env.clientId,GOOGLE_CLIENT_SECRET:env.clientSecret,GOOGLE_DEVELOPER_TOKEN:env.developerToken,ENCRYPTION_KEY:env.encryptionKey,NEXTAUTH_URL:env.nextAuthUrl})){if(value===undefined)delete process.env[name];else process.env[name]=value}});
 describe('GoogleAdsClient',()=>{
@@ -69,6 +70,25 @@ describe('Google Ads v25 pagination', () => {
 });
 
 describe('Google Ads user access', () => {
+  it('checks whether an MCC context can read child-account users', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ results: [] }), { status: 200 }),
+    );
+    const service = new UserAccessService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '123' }));
+    await expect(service.canManageCustomerUsers('456-789')).resolves.toBe(true);
+    expect(fetchMock.mock.calls[0][0]).toContain('/customers/456789/googleAds:search');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+      query: 'SELECT customer_user_access.resource_name FROM customer_user_access LIMIT 1',
+    });
+  });
+
+  it('maps a permission denial to no ownership and preserves unrelated failures', () => {
+    expect(ownershipResultFromError(new GoogleAdsError('USER_PERMISSION_DENIED', 'Denied', 403)))
+      .toEqual({ mccHasOwnership: false, mccOwnershipErrorCode: 'USER_PERMISSION_DENIED' });
+    expect(ownershipResultFromError(new GoogleAdsError('RESOURCE_EXHAUSTED', 'Retry later', 429)))
+      .toEqual({ mccHasOwnership: null, mccOwnershipErrorCode: 'RESOURCE_EXHAUSTED' });
+  });
+
   it('finds the connected Google user role case-insensitively', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ results: [
       { customerUserAccess: { emailAddress: 'Owner@Example.com', accessRole: 'ADMIN' } },

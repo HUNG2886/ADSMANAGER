@@ -18,6 +18,17 @@ type InvitationResponse = {
 export class UserAccessService {
   constructor(private client: GoogleAdsClient) {}
 
+  async canManageCustomerUsers(customerId: string) {
+    const id = normalizeCustomerId(customerId);
+    await this.client.request(`/customers/${id}/googleAds:search`, {
+      method: 'POST',
+      body: JSON.stringify({
+        query: 'SELECT customer_user_access.resource_name FROM customer_user_access LIMIT 1',
+      }),
+    });
+    return true;
+  }
+
   async findAccessRole(customerId: string, emailAddress: string) {
     const id = normalizeCustomerId(customerId);
     const expectedEmail = emailAddress.trim().toLowerCase();
