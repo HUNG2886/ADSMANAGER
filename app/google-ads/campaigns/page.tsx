@@ -7,8 +7,19 @@ import { dateLocale, tr } from '@/lib/i18n';
 import { getAppLocale } from '@/lib/i18n-server';
 import { prisma } from '@/lib/prisma';
 import { CampaignActions } from '../campaign-actions';
+import { CampaignSyncButton } from './campaign-sync-button';
 
-type CampaignQuery = { q?: string };
+type CampaignQuery = { q?: string; page?: string };
+
+const PAGE_SIZE = 100;
+
+function pageHref(search: string, page: number) {
+  const params = new URLSearchParams();
+  if (search) params.set('q', search);
+  if (page > 1) params.set('page', String(page));
+  const query = params.toString();
+  return `/google-ads/campaigns${query ? `?${query}` : ''}`;
+}
 
 export default async function CampaignsPage({
   searchParams,
@@ -20,19 +31,25 @@ export default async function CampaignsPage({
 
   const query = await searchParams;
   const search = query.q?.trim().slice(0, 200) || '';
+  const requestedPage = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
   const locale = await getAppLocale();
   const numberLocale = dateLocale(locale);
   const allowed = await allowedMccIds(user);
+  const where = {
+    AND: [
+      { customerAccount: { mcc: allowed === null ? {} : { id: { in: allowed } } } },
+      search ? { name: { contains: search, mode: 'insensitive' as const } } : {},
+    ],
+  };
+  const totalCampaigns = await prisma.campaign.count({ where });
+  const totalPages = Math.max(1, Math.ceil(totalCampaigns / PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
   const campaigns = await prisma.campaign.findMany({
-    where: {
-      AND: [
-        { customerAccount: { mcc: allowed === null ? {} : { id: { in: allowed } } } },
-        search ? { name: { contains: search, mode: 'insensitive' } } : {},
-      ],
-    },
+    where,
     include: { customerAccount: { include: { mcc: true } } },
-    orderBy: { updatedAt: 'desc' },
-    take: 1000,
+    orderBy: [{ name: 'asc' }, { campaignId: 'asc' }],
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
   });
   const totals = campaigns.length
     ? await prisma.dailyMetric.groupBy({
@@ -44,6 +61,8 @@ export default async function CampaignsPage({
   const spendByCampaign = new Map(
     totals.map((item) => [item.campaignId, Number(item._sum.cost || 0)]),
   );
+  const firstVisible = totalCampaigns ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const lastVisible = Math.min(page * PAGE_SIZE, totalCampaigns);
 
   return (
     <>
@@ -54,11 +73,12 @@ export default async function CampaignsPage({
           <span>
             {tr(
               locale,
-              'ADMIN có thể tạm dừng, bật và cập nhật ngân sách; STAFF chỉ đọc.',
-              'ADMIN can pause, enable, and update budgets; STAFF is read-only.',
+              'Đồng bộ chiến dịch từ toàn bộ tài khoản MCC; ADMIN có thể cập nhật, STAFF chỉ đọc.',
+              'Synchronize campaigns from every MCC account; ADMIN can update them and STAFF is read-only.',
             )}
           </span>
         </div>
+        {user.role === 'ADMIN' && <CampaignSyncButton />}
       </div>
 
       <form className="ga-filters">
@@ -95,8 +115,8 @@ export default async function CampaignsPage({
                 )
               : tr(
                   locale,
-                  'Mở một tài khoản để hệ thống đọc chiến dịch và chỉ số thực tế từ Google Ads API.',
-                  'Open an account so the system can load real campaigns and metrics from the Google Ads API.',
+                  'ADMIN hãy chọn “Đồng bộ tất cả chiến dịch” để đọc dữ liệu từ mọi tài khoản trong các MCC.',
+                  'An ADMIN can select “Sync all campaigns” to load data from every account in the MCCs.',
                 )}
           </p>
         </section>
@@ -168,6 +188,30 @@ export default async function CampaignsPage({
               </tbody>
             </table>
           </div>
+          <footer className="ga-pagination">
+            <span>
+              {tr(
+                locale,
+                `Hiển thị ${firstVisible}–${lastVisible} / ${totalCampaigns} chiến dịch`,
+                `Showing ${firstVisible}–${lastVisible} of ${totalCampaigns} campaigns`,
+              )}
+            </span>
+            <nav>
+              {page > 1 ? (
+                <a href={pageHref(search, page - 1)}>{tr(locale, 'Trang trước', 'Previous')}</a>
+              ) : (
+                <span>{tr(locale, 'Trang trước', 'Previous')}</span>
+              )}
+              <b>
+                {page}/{totalPages}
+              </b>
+              {page < totalPages ? (
+                <a href={pageHref(search, page + 1)}>{tr(locale, 'Trang sau', 'Next')}</a>
+              ) : (
+                <span>{tr(locale, 'Trang sau', 'Next')}</span>
+              )}
+            </nav>
+          </footer>
         </section>
       )}
     </>

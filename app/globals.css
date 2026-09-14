@@ -303,3 +303,11 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 @media(max-width:460px){.public-header-signin{display:none}.public-brand strong{max-width:155px}.public-hero h1{font-size:39px}}
 .ga-filter-clear{height:34px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dfe4ec;border-radius:8px;padding:0 12px;color:#647085;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap}
 @media(max-width:520px){.ga-filter-clear{grid-column:1/-1}}
+.ga-bulk-sync{display:grid;justify-items:end;gap:7px;max-width:min(620px,55vw)}
+.ga-bulk-sync>.ga-primary{white-space:nowrap}
+.ga-bulk-sync>small{display:flex;align-items:flex-start;gap:5px;color:#6f7b8e;font-size:9px;line-height:1.45;text-align:right}
+.ga-bulk-sync>small svg{flex:0 0 auto;margin-top:1px}
+.ga-bulk-sync>small.success{color:#23805f}.ga-bulk-sync>small.danger{color:#b84850}
+.ga-pagination{min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid #edf0f4;padding:10px 14px;color:#7d8899;font-size:10px}
+.ga-pagination nav{display:flex;align-items:center;gap:7px}.ga-pagination nav a,.ga-pagination nav span,.ga-pagination nav b{min-height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dfe4ec;border-radius:8px;padding:0 10px;background:#fff;color:#59667a;text-decoration:none}.ga-pagination nav span{color:#a5adba}.ga-pagination nav b{border-color:#416af0;background:#416af0;color:#fff}
+@media(max-width:760px){.ga-bulk-sync{width:100%;max-width:none;justify-items:stretch}.ga-bulk-sync>small{text-align:left}.ga-pagination{align-items:stretch;flex-direction:column}.ga-pagination nav{justify-content:space-between}}
