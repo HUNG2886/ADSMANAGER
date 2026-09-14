@@ -1,10 +1,12 @@
 import { decryptSecret, encryptSecret } from '../../lib/encryption';
+import { mapWithConcurrency } from '../../lib/concurrency';
 import { prisma } from '../../lib/prisma';
 import { GoogleAdsClient } from './client';
 import { formatGoogleAdsError,GoogleAdsError } from './errors';
 import { googleAdsConfigStatus, refreshGoogleAccessToken, revokeGoogleToken, type GoogleOAuthToken } from './auth.service';
 import { HierarchyService } from './hierarchy.service';
 import { logGoogleAds } from './safe-logger';
+import { UserAccessService, type GoogleAdsUserAccessRole } from './user-access.service';
 
 function developerToken() {
   const status = googleAdsConfigStatus();
@@ -85,13 +87,27 @@ export async function syncGoogleConnection(connectionId: string) {
   const { connection, accessToken } = await connectionAccessToken(connectionId);
   try {
     const hierarchy = await new HierarchyService(accessToken, developerToken()).discover();
+    const accessRoles = new Map<string, GoogleAdsUserAccessRole | null>();
+    const loginCustomerIds = [...new Set(hierarchy.mccs.map(item => item.loginCustomerId))];
+    await mapWithConcurrency(loginCustomerIds, 3, async loginCustomerId => {
+      const accessClient = new GoogleAdsClient({ accessToken, developerToken: developerToken(), loginCustomerId });
+      try {
+        const role = await new UserAccessService(accessClient).findAccessRole(loginCustomerId, connection.googleEmail);
+        accessRoles.set(loginCustomerId, role);
+      } catch (error) {
+        accessRoles.set(loginCustomerId, null);
+        if (error instanceof GoogleAdsError) {
+          logGoogleAds('mcc_user_access_role_unavailable', { mccCustomerId: loginCustomerId, loginCustomerId, error }, 'warn');
+        }
+      }
+    });
     const storedMcc = new Map<string, string>();
 
     for (const item of hierarchy.mccs.sort((a, b) => a.level - b.level)) {
       const row = await prisma.mCC.upsert({
         where: { connectionId_customerId: { connectionId, customerId: item.customerId } },
-        create: { userId: connection.userId, connectionId, ...item, currency: item.currency, timezone: item.timezone, lastSyncAt: new Date() },
-        update: { ...item, currency: item.currency, timezone: item.timezone, lastSyncAt: new Date() },
+        create: { userId: connection.userId, connectionId, ...item, currency: item.currency, timezone: item.timezone, accessRole: accessRoles.get(item.loginCustomerId) ?? null, lastSyncAt: new Date() },
+        update: { ...item, currency: item.currency, timezone: item.timezone, accessRole: accessRoles.get(item.loginCustomerId) ?? null, lastSyncAt: new Date() },
       });
       storedMcc.set(item.customerId, row.id);
     }

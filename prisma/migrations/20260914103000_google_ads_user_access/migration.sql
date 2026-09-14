@@ -1,0 +1,1 @@
+ALTER TABLE "MCC" ADD COLUMN "accessRole" TEXT;

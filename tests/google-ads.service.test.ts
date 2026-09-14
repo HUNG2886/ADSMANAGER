@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'; import { GoogleAdsClient } from '../services/google-ads/client'; import { GoogleAdsError } from '../services/google-ads/errors';import { buildGoogleAuthorizationUrl,googleAdsConfigStatus } from '../services/google-ads/auth.service';import {HierarchyService} from '../services/google-ads/hierarchy.service';
 import { CampaignService } from '../services/google-ads/campaign.service';
 import { CustomerService } from '../services/google-ads/customer.service';
+import { UserAccessService } from '../services/google-ads/user-access.service';
 const env={clientId:process.env.GOOGLE_CLIENT_ID,clientSecret:process.env.GOOGLE_CLIENT_SECRET,developerToken:process.env.GOOGLE_DEVELOPER_TOKEN,encryptionKey:process.env.ENCRYPTION_KEY,nextAuthUrl:process.env.NEXTAUTH_URL};
 afterEach(()=>{vi.restoreAllMocks();for(const[name,value]of Object.entries({GOOGLE_CLIENT_ID:env.clientId,GOOGLE_CLIENT_SECRET:env.clientSecret,GOOGLE_DEVELOPER_TOKEN:env.developerToken,ENCRYPTION_KEY:env.encryptionKey,NEXTAUTH_URL:env.nextAuthUrl})){if(value===undefined)delete process.env[name];else process.env[name]=value}});
 describe('GoogleAdsClient',()=>{
@@ -64,6 +65,24 @@ describe('Google Ads v25 pagination', () => {
     expect(firstBody).not.toHaveProperty('pageToken');
     expect(secondBody).not.toHaveProperty('pageSize');
     expect(secondBody.pageToken).toBe('campaigns-page-2');
+  });
+});
+
+describe('Google Ads user access', () => {
+  it('finds the connected Google user role case-insensitively', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ results: [
+      { customerUserAccess: { emailAddress: 'Owner@Example.com', accessRole: 'ADMIN' } },
+    ] }), { status: 200 }));
+    const service = new UserAccessService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '123' }));
+    await expect(service.findAccessRole('123', 'owner@example.com')).resolves.toBe('ADMIN');
+  });
+
+  it('sends only a supported read-only or standard invitation payload', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ result: { resourceName: 'customers/123/customerUserAccessInvitations/7' } }), { status: 200 }));
+    const service = new UserAccessService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '123' }));
+    await service.invite('123-000', 'User@Example.com ', 'STANDARD');
+    expect(fetchMock.mock.calls[0][0]).toContain('/customers/123000/customerUserAccessInvitations:mutate');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ operation: { create: { emailAddress: 'user@example.com', accessRole: 'STANDARD' } } });
   });
 });
 

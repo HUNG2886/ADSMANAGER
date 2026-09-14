@@ -129,6 +129,7 @@ model MCC {
   currency String?
   timezone String?
   status String
+  accessRole String?
   lastSyncAt DateTime?
   accounts CustomerAccount[]
   userPermissions UserMCCPermission[]
