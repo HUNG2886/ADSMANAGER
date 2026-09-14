@@ -5,10 +5,8 @@ const optionalText = (max: number) => z.union([z.string().trim().max(max), z.lit
 
 export const clientSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  company: optionalText(160),
   email: z.union([z.string().trim().email().max(180), z.literal('')]).optional().transform(value => value?.toLowerCase() || null),
-  phone: optionalText(40),
-  website: z.union([z.string().trim().url().max(300), z.literal('')]).optional().transform(value => value || null),
+  rentalAccount: optionalText(300),
   notes: optionalText(2000),
 });
 

@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       AND: [
         allowed === null ? {} : { accountAssignments: { some: { customerAccount: { mccId: { in: allowed } } } } },
         status && status !== 'ALL' ? { status: status === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE' } : {},
-        query ? { OR: [{ name: { contains: query, mode: 'insensitive' } }, { company: { contains: query, mode: 'insensitive' } }, { email: { contains: query, mode: 'insensitive' } }] } : {},
+        query ? { OR: [{ name: { contains: query, mode: 'insensitive' } }, { email: { contains: query, mode: 'insensitive' } }, { rentalAccount: { contains: query, mode: 'insensitive' } }] } : {},
       ],
     },
     include: { accountAssignments: { where: allowed === null ? {} : { customerAccount: { mccId: { in: allowed } } }, orderBy: { createdAt: 'asc' }, select: { customerAccount: { select: { id: true, name: true, customerId: true, status: true, mcc: { select: { id: true, name: true } } } } } } },

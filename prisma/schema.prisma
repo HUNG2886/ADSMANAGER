@@ -176,6 +176,7 @@ model Client {
   email String?
   phone String?
   website String?
+  rentalAccount String?
   status ClientStatus @default(ACTIVE)
   notes String?
   accountAssignments ClientAccountAssignment[]
