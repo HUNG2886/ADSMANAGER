@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'; import { GoogleAdsClient } from '../services/google-ads/client'; import { GoogleAdsError } from '../services/google-ads/errors';import { buildGoogleAuthorizationUrl,googleAdsConfigStatus } from '../services/google-ads/auth.service';import {HierarchyService} from '../services/google-ads/hierarchy.service';
+import { CampaignService } from '../services/google-ads/campaign.service';
+import { CustomerService } from '../services/google-ads/customer.service';
 const env={clientId:process.env.GOOGLE_CLIENT_ID,clientSecret:process.env.GOOGLE_CLIENT_SECRET,developerToken:process.env.GOOGLE_DEVELOPER_TOKEN,encryptionKey:process.env.ENCRYPTION_KEY,nextAuthUrl:process.env.NEXTAUTH_URL};
 afterEach(()=>{vi.restoreAllMocks();for(const[name,value]of Object.entries({GOOGLE_CLIENT_ID:env.clientId,GOOGLE_CLIENT_SECRET:env.clientSecret,GOOGLE_DEVELOPER_TOKEN:env.developerToken,ENCRYPTION_KEY:env.encryptionKey,NEXTAUTH_URL:env.nextAuthUrl})){if(value===undefined)delete process.env[name];else process.env[name]=value}});
 describe('GoogleAdsClient',()=>{
@@ -8,6 +10,60 @@ describe('GoogleAdsClient',()=>{
 
 describe('HierarchyService',()=>{
   it('reports accessible customer IDs before a later customer query fails',async()=>{const fetchMock=vi.spyOn(globalThis,'fetch');fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({resourceNames:['customers/123-456-7890']}),{status:200}));fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({error:{status:'PERMISSION_DENIED',details:[{errors:[{errorCode:{authorizationError:'DEVELOPER_TOKEN_NOT_APPROVED'},message:'Test token cannot read production.'}],requestId:'req-partial'}]}}),{status:403}));let accessible:string[]=[];await expect(new HierarchyService('access','developer').discover(ids=>{accessible=ids})).rejects.toMatchObject({code:'DEVELOPER_TOKEN_NOT_APPROVED'});expect(accessible).toEqual(['1234567890'])});
+});
+
+describe('Google Ads v25 pagination', () => {
+  it('does not send pageSize and follows customer hierarchy page tokens', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        results: [{ customerClient: { id: '111', manager: true } }],
+        nextPageToken: 'customers-page-2',
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        results: [{ customerClient: { id: '222', manager: false } }],
+      }), { status: 200 }));
+
+    const service = new CustomerService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer' }));
+    await expect(service.listImmediateClients('123-456-7890')).resolves.toEqual([
+      { id: '111', manager: true },
+      { id: '222', manager: false },
+    ]);
+
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(firstBody).not.toHaveProperty('pageSize');
+    expect(firstBody).not.toHaveProperty('pageToken');
+    expect(secondBody).not.toHaveProperty('pageSize');
+    expect(secondBody.pageToken).toBe('customers-page-2');
+  });
+
+  it('does not send pageSize and combines all campaign pages', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        results: [{ campaign: { id: '1', name: 'First' } }],
+        nextPageToken: 'campaigns-page-2',
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        results: [{ campaign: { id: '2', name: 'Second' } }],
+      }), { status: 200 }));
+
+    const service = new CampaignService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer' }));
+    await expect(service.list('987-654-3210')).resolves.toEqual({
+      results: [
+        { campaign: { id: '1', name: 'First' } },
+        { campaign: { id: '2', name: 'Second' } },
+      ],
+    });
+
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(firstBody).not.toHaveProperty('pageSize');
+    expect(firstBody).not.toHaveProperty('pageToken');
+    expect(secondBody).not.toHaveProperty('pageSize');
+    expect(secondBody.pageToken).toBe('campaigns-page-2');
+  });
 });
 
 describe('Google OAuth configuration',()=>{
