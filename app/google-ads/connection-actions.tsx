@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, RefreshCw, Unplug } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Trash2, Unplug } from 'lucide-react';
 import { useState } from 'react';
 import { useAppLocale } from '@/app/locale-provider';
 import {
@@ -92,13 +92,20 @@ export function ConnectionActions({ id, status }: { id: string; status: string }
   }
 
   async function disconnect() {
+    const alreadyDisconnected = status === 'DISCONNECTED';
     if (
       !window.confirm(
-        tr(
-          locale,
-          'Bạn có chắc muốn ngắt kết nối Google account này? Dữ liệu lịch sử vẫn được giữ lại.',
-          'Disconnect this Google account? Historical data will be preserved.',
-        ),
+        alreadyDisconnected
+          ? tr(
+              locale,
+              'Xóa toàn bộ MCC, tài khoản, chiến dịch và chỉ số còn lưu của kết nối này? Dữ liệu không thể khôi phục.',
+              'Delete every stored MCC, account, campaign, and metric for this connection? This cannot be undone.',
+            )
+          : tr(
+              locale,
+              'Ngắt quyền Google và xóa toàn bộ MCC, tài khoản, chiến dịch cùng chỉ số của kết nối này? Dữ liệu không thể khôi phục.',
+              'Revoke Google access and delete every MCC, account, campaign, and metric for this connection? This cannot be undone.',
+            ),
       )
     )
       return;
@@ -136,13 +143,15 @@ export function ConnectionActions({ id, status }: { id: string; status: string }
         )}
         <button
           className="danger"
-          disabled={Boolean(busy) || status === 'DISCONNECTED'}
+          disabled={Boolean(busy)}
           onClick={disconnect}
         >
-          <Unplug size={14} />
+          {status === 'DISCONNECTED' ? <Trash2 size={14} /> : <Unplug size={14} />}
           {busy === 'disconnect'
-            ? tr(locale, 'Đang ngắt...', 'Disconnecting...')
-            : tr(locale, 'Ngắt kết nối', 'Disconnect')}
+            ? tr(locale, 'Đang xóa...', 'Deleting...')
+            : status === 'DISCONNECTED'
+              ? tr(locale, 'Xóa dữ liệu', 'Delete data')
+              : tr(locale, 'Ngắt kết nối', 'Disconnect')}
         </button>
       </div>
       {error && (

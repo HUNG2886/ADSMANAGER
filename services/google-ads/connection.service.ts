@@ -165,10 +165,12 @@ export async function disconnectGoogleConnection(connectionId: string, userId: s
     const refreshToken = await decryptSecret(connection.refreshTokenEncrypted).catch(() => null);
     if (refreshToken) await revokeGoogleToken(refreshToken);
   }
-  return prisma.googleConnection.update({
-    where: { id: connection.id },
-    data: { status: 'DISCONNECTED', refreshTokenEncrypted: null, accessTokenEncrypted: null, expiresAt: null, disconnectedAt: new Date() },
+  await prisma.googleConnection.delete({ where: { id: connection.id } });
+  logGoogleAds('connection_deleted', {
+    connectionId: connection.id,
+    googleEmail: connection.googleEmail,
   });
+  return { id: connection.id, googleEmail: connection.googleEmail };
 }
 
 function mapAccountStatus(value: string) {
