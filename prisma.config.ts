@@ -1,5 +1,5 @@
 import { defineConfig } from 'prisma/config';
-import { configureDatabaseUrl } from './lib/database-url';
+import { configureMigrationDatabaseUrl } from './lib/database-url';
 
 try {
   process.loadEnvFile('.env');
@@ -7,7 +7,10 @@ try {
   // Vercel injects environment variables directly; a local .env is optional.
 }
 
-configureDatabaseUrl();
+// Prisma CLI commands (especially migrate deploy) must avoid pooled PostgreSQL
+// endpoints because session-level advisory locks can remain attached to a pool.
+// The application itself continues to use DATABASE_URL at runtime.
+configureMigrationDatabaseUrl();
 
 export default defineConfig({
   earlyAccess: true,

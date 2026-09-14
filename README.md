@@ -63,8 +63,9 @@ Campaign mutations luôn đi qua backend. UI yêu cầu xác nhận, backend ki�
 ## Deploy Vercel
 
 1. Import GitHub repository và giữ Framework Preset là **Next.js**. Không đặt Output Directory; Next.js dùng `.next` mặc định.
-2. Thêm `AUTH_SECRET`, `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_PASSWORD`, `DEFAULT_STAFF_EMAIL`, `DEFAULT_STAFF_PASSWORD`, `DATABASE_URL`, `DATABASE_SCHEMA=adsmanager` và `NEXTAUTH_URL`. Nếu dùng Google Sign-In, thêm `DEFAULT_ADMIN_GOOGLE_EMAIL`/`DEFAULT_STAFF_GOOGLE_EMAIL` khi identifier website khác email Google.
+2. Thêm `AUTH_SECRET`, `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_PASSWORD`, `DEFAULT_STAFF_EMAIL`, `DEFAULT_STAFF_PASSWORD`, `DATABASE_URL`, `DIRECT_URL`, `DATABASE_SCHEMA=adsmanager` và `NEXTAUTH_URL`. `DATABASE_URL` dùng endpoint Neon pooled cho ứng dụng; `DIRECT_URL` dùng endpoint không có hậu tố `-pooler` cho Prisma migration/seed. Nếu dùng Google Sign-In, thêm `DEFAULT_ADMIN_GOOGLE_EMAIL`/`DEFAULT_STAFF_GOOGLE_EMAIL` khi identifier website khác email Google.
 3. Thêm `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_DEVELOPER_TOKEN`, `ENCRYPTION_KEY`; tuyệt đối không dùng tiền tố `NEXT_PUBLIC_` cho các biến này.
 4. Trong Google Cloud Console, thêm hai redirect URI chính xác: `${NEXTAUTH_URL}/api/auth/google-ads/callback` và `${NEXTAUTH_URL}/api/auth/google/callback`.
 5. Build Vercel tự chạy `prisma migrate deploy` và seed idempotent trước khi build Next.js. Seed chỉ upsert hai tài khoản bootstrap theo environment và không tạo duplicate.
 6. Build command đã được cố định trong `vercel.json` là `npm run build:vercel`; Output Directory để trống để Vercel dùng `.next`.
+7. Nếu chưa thể thêm `DIRECT_URL`, có thể tạm đặt `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1` để tránh lỗi `P1002` trên endpoint pooled. Không chạy nhiều deployment/migration đồng thời khi dùng chế độ tạm này.

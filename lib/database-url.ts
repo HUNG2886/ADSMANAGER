@@ -13,3 +13,11 @@ export function configureDatabaseUrl() {
   if (url) process.env.DATABASE_URL = url;
   return url;
 }
+
+export function configureMigrationDatabaseUrl(
+  rawUrl = process.env.DIRECT_URL || process.env.DATABASE_URL,
+) {
+  const url = scopedDatabaseUrl(rawUrl);
+  if (url) process.env.DATABASE_URL = url;
+  return url;
+}
