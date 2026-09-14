@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BrandLogo } from './brand-logo';
+import { PublicLocaleLink, PublicLocaleSync } from './language-switcher';
 import { publicRoute, type PublicLocale, type PublicPage } from './public-locales';
 
 export const APP_NAME = 'David Agency MCC Manager';
@@ -19,8 +20,8 @@ const shellCopy = {
 function LanguageSwitcher({ locale, page }: { locale: PublicLocale; page: PublicPage }) {
   return (
     <nav className="public-language" aria-label={shellCopy[locale].language}>
-      <Link href={publicRoute('en', page)} hrefLang="en" lang="en" aria-current={locale === 'en' ? 'page' : undefined}>EN</Link>
-      <Link href={publicRoute('vi', page)} hrefLang="vi" lang="vi" aria-current={locale === 'vi' ? 'page' : undefined}>VI</Link>
+      <span aria-current={locale === 'en' ? 'page' : undefined}><PublicLocaleLink locale="en" href={publicRoute('en', page)}>EN</PublicLocaleLink></span>
+      <span aria-current={locale === 'vi' ? 'page' : undefined}><PublicLocaleLink locale="vi" href={publicRoute('vi', page)}>VI</PublicLocaleLink></span>
     </nav>
   );
 }
@@ -29,6 +30,7 @@ export function PublicHeader({ locale = 'en', page = 'home' }: { locale?: Public
   const text = shellCopy[locale];
   return (
     <header className="public-header">
+      <PublicLocaleSync locale={locale} />
       <Link className="public-brand" href={publicRoute(locale, 'home')} aria-label={`${APP_NAME} — ${text.home}`}>
         <BrandLogo decorative />
         <strong>{APP_NAME}</strong>

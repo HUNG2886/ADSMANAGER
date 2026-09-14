@@ -1,3 +1,5 @@
+import type { AppLocale } from './i18n';
+
 export type SpendPeriodKey = 'today' | 'yesterday' | 'last7' | 'month';
 export type SpendPeriod = { key: SpendPeriodKey; label: string; start: string; end: string };
 
@@ -17,14 +19,14 @@ function shiftDate(value: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function metricPeriodBounds(timezone = 'UTC', now = new Date()): SpendPeriod[] {
+export function metricPeriodBounds(timezone = 'UTC', now = new Date(), locale: AppLocale = 'vi'): SpendPeriod[] {
   const today = dateInTimezone(now, timezone);
   const yesterday = shiftDate(today, -1);
   return [
-    { key: 'today', label: 'Hôm nay', start: today, end: today },
-    { key: 'yesterday', label: 'Hôm qua', start: yesterday, end: yesterday },
-    { key: 'last7', label: '7 ngày gần nhất', start: shiftDate(today, -6), end: today },
-    { key: 'month', label: 'Tháng này', start: `${today.slice(0, 7)}-01`, end: today },
+    { key: 'today', label: locale === 'vi' ? 'Hôm nay' : 'Today', start: today, end: today },
+    { key: 'yesterday', label: locale === 'vi' ? 'Hôm qua' : 'Yesterday', start: yesterday, end: yesterday },
+    { key: 'last7', label: locale === 'vi' ? '7 ngày gần nhất' : 'Last 7 days', start: shiftDate(today, -6), end: today },
+    { key: 'month', label: locale === 'vi' ? 'Tháng này' : 'This month', start: `${today.slice(0, 7)}-01`, end: today },
   ];
 }
 

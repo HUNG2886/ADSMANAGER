@@ -12,6 +12,11 @@ describe('metric periods', () => {
       { key: 'month', label: 'Tháng này', start: '2026-08-01', end: '2026-08-26' },
     ]);
   });
+
+  it('returns English labels when the application language is English', () => {
+    const periods = metricPeriodBounds('Asia/Ho_Chi_Minh', new Date('2026-08-25T18:30:00.000Z'), 'en');
+    expect(periods.map(period => period.label)).toEqual(['Today', 'Yesterday', 'Last 7 days', 'This month']);
+  });
 });
 
 describe('concurrency limiter', () => {
