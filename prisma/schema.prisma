@@ -159,7 +159,7 @@ model CustomerAccount {
   currency              String?
   timezone              String?
   status                AccountStatus            @default(UNKNOWN)
-  mccHasOwnership       Boolean?
+  mccHasOwnership       Boolean                  @default(false)
   mccOwnershipCheckedAt DateTime?
   mccOwnershipErrorCode String?
   lastSyncAt            DateTime?

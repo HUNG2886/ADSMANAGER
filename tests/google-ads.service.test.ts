@@ -82,16 +82,16 @@ describe('Google Ads user access', () => {
     });
   });
 
-  it('maps a permission denial to no ownership and preserves unrelated failures', () => {
+  it('maps every failed ownership check to no while preserving its error code', () => {
     expect(ownershipResultFromError(new GoogleAdsError('USER_PERMISSION_DENIED', 'Denied', 403)))
       .toEqual({ mccHasOwnership: false, mccOwnershipErrorCode: 'USER_PERMISSION_DENIED' });
     expect(ownershipResultFromError(new GoogleAdsError('RESOURCE_EXHAUSTED', 'Retry later', 429)))
-      .toEqual({ mccHasOwnership: null, mccOwnershipErrorCode: 'RESOURCE_EXHAUSTED' });
+      .toEqual({ mccHasOwnership: false, mccOwnershipErrorCode: 'RESOURCE_EXHAUSTED' });
   });
 
   it('finds the connected Google user role case-insensitively', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ results: [
-      { customerUserAccess: { emailAddress: 'Owner@Example.com', accessRole: 'ADMIN' } },
+      { customerUserAccess: { userId: '7', resourceName: 'customers/123/customerUserAccesses/7', emailAddress: 'Owner@Example.com', accessRole: 'ADMIN' } },
     ] }), { status: 200 }));
     const service = new UserAccessService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '123' }));
     await expect(service.findAccessRole('123', 'owner@example.com')).resolves.toBe('ADMIN');
@@ -103,6 +103,24 @@ describe('Google Ads user access', () => {
     await service.invite('123-000', 'User@Example.com ', 'STANDARD');
     expect(fetchMock.mock.calls[0][0]).toContain('/customers/123000/customerUserAccessInvitations:mutate');
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ operation: { create: { emailAddress: 'user@example.com', accessRole: 'STANDARD' } } });
+  });
+
+  it('removes an exact customer user access resource from its own customer', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      result: { resourceName: 'customers/123000/customerUserAccesses/7' },
+    }), { status: 200 }));
+    const service = new UserAccessService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '999' }));
+    await service.remove('123-000', 'customers/123000/customerUserAccesses/7');
+    expect(fetchMock.mock.calls[0][0]).toContain('/customers/123000/customerUserAccesses:mutate');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+      operation: { remove: 'customers/123000/customerUserAccesses/7' },
+    });
+  });
+
+  it('refuses a customer user access resource from another account', async () => {
+    const service = new UserAccessService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '999' }));
+    await expect(service.remove('123', 'customers/456/customerUserAccesses/7'))
+      .rejects.toThrow('Invalid customer user access resource name.');
   });
 });
 

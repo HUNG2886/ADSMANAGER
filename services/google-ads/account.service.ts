@@ -9,20 +9,12 @@ import { UserAccessService } from './user-access.service';
 function isoDate(date: Date) { return date.toISOString().slice(0, 10); }
 function bigint(value: string | undefined) { try { return BigInt(value || '0'); } catch { return BigInt(0); } }
 
-const OWNERSHIP_DENIED_CODES = new Set([
-  'ACTION_NOT_PERMITTED',
-  'AUTHORIZATION_ERROR',
-  'INVALID_LOGIN_CUSTOMER_ID_SERVING_CUSTOMER_ID_COMBINATION',
-  'SERVICE_ACCESS_DENIED',
-  'USER_PERMISSION_DENIED',
-]);
-
 export function ownershipResultFromError(error: unknown) {
   if (!(error instanceof GoogleAdsError)) {
-    return { mccHasOwnership: null, mccOwnershipErrorCode: 'LOCAL_ERROR' };
+    return { mccHasOwnership: false, mccOwnershipErrorCode: 'LOCAL_ERROR' };
   }
   return {
-    mccHasOwnership: OWNERSHIP_DENIED_CODES.has(error.code) ? false : null,
+    mccHasOwnership: false,
     mccOwnershipErrorCode: error.code,
   };
 }
