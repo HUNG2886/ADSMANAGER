@@ -123,6 +123,30 @@ describe('Google Ads user access', () => {
     await expect(service.remove('123', 'customers/456/customerUserAccesses/7'))
       .rejects.toThrow('Invalid customer user access resource name.');
   });
+
+  it('preserves the Google error when the current user is the last manager admin', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        code: 400,
+        status: 'INVALID_ARGUMENT',
+        message: 'The last admin user cannot be removed from a manager account.',
+        details: [{
+          '@type': 'type.googleapis.com/google.ads.googleads.v25.errors.GoogleAdsFailure',
+          errors: [{
+            errorCode: { customerUserAccessError: 'LAST_ADMIN_USER_OF_MANAGER' },
+            message: 'The last admin user cannot be removed from a manager account.',
+          }],
+          requestId: 'last-admin-request-id',
+        }],
+      },
+    }), { status: 400 }));
+    const service = new UserAccessService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '123' }));
+    await expect(service.remove('123', 'customers/123/customerUserAccesses/7')).rejects.toMatchObject({
+      code: 'LAST_ADMIN_USER_OF_MANAGER',
+      type: 'customerUserAccessError',
+      requestId: 'last-admin-request-id',
+    });
+  });
 });
 
 describe('Google Ads manager links', () => {
