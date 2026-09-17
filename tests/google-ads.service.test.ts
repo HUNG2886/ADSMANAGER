@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'; import { GoogleAds
 import { CampaignService } from '../services/google-ads/campaign.service';
 import { CustomerService } from '../services/google-ads/customer.service';
 import { UserAccessService } from '../services/google-ads/user-access.service';
+import { ManagerLinkService } from '../services/google-ads/manager-link.service';
 import { ownershipResultFromError } from '../services/google-ads/account.service';
 const env={clientId:process.env.GOOGLE_CLIENT_ID,clientSecret:process.env.GOOGLE_CLIENT_SECRET,developerToken:process.env.GOOGLE_DEVELOPER_TOKEN,encryptionKey:process.env.ENCRYPTION_KEY,nextAuthUrl:process.env.NEXTAUTH_URL};
 afterEach(()=>{vi.restoreAllMocks();for(const[name,value]of Object.entries({GOOGLE_CLIENT_ID:env.clientId,GOOGLE_CLIENT_SECRET:env.clientSecret,GOOGLE_DEVELOPER_TOKEN:env.developerToken,ENCRYPTION_KEY:env.encryptionKey,NEXTAUTH_URL:env.nextAuthUrl})){if(value===undefined)delete process.env[name];else process.env[name]=value}});
@@ -121,6 +122,68 @@ describe('Google Ads user access', () => {
     const service = new UserAccessService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '999' }));
     await expect(service.remove('123', 'customers/456/customerUserAccesses/7'))
       .rejects.toThrow('Invalid customer user access resource name.');
+  });
+});
+
+describe('Google Ads manager links', () => {
+  it('reuses an active manager link without creating a duplicate', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      results: [{ customerClientLink: {
+        resourceName: 'customers/111/customerClientLinks/222~7',
+        clientCustomer: 'customers/222',
+        managerLinkId: '7',
+        status: 'ACTIVE',
+      } }],
+    }), { status: 200 }));
+    const service = new ManagerLinkService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '111' }));
+
+    await expect(service.ensureInvitation('111-000-0000', '222-000-0000')).resolves.toEqual({
+      resourceName: 'customers/111/customerClientLinks/222~7',
+      managerLinkId: '7',
+      status: 'ACTIVE',
+      created: false,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body.query).toContain("customer_client_link.client_customer = 'customers/2220000000'");
+    expect(body).not.toHaveProperty('pageSize');
+  });
+
+  it('creates a pending customer client link with the v25 singular operation payload', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        result: { resourceName: 'customers/1110000000/customerClientLinks/2220000000~8' },
+      }), { status: 200 }));
+    const service = new ManagerLinkService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '1110000000' }));
+
+    await expect(service.ensureInvitation('111-000-0000', '222-000-0000')).resolves.toMatchObject({
+      managerLinkId: '8', status: 'PENDING', created: true,
+    });
+    expect(fetchMock.mock.calls[1][0]).toContain('/customers/1110000000/customerClientLinks:mutate');
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({
+      operation: { create: { clientCustomer: 'customers/2220000000', status: 'PENDING' } },
+    });
+  });
+
+  it('accepts a pending invitation from the client account', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      results: [{ resourceName: 'customers/2220000000/customerManagerLinks/1110000000~8' }],
+    }), { status: 200 }));
+    const service = new ManagerLinkService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '3330000000' }));
+
+    await service.acceptInvitation('222-000-0000', '111-000-0000', '8');
+    expect(fetchMock.mock.calls[0][0]).toContain('/customers/2220000000/customerManagerLinks:mutate');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+      operations: [{
+        update: {
+          resourceName: 'customers/2220000000/customerManagerLinks/1110000000~8',
+          status: 'ACTIVE',
+        },
+        updateMask: 'status',
+      }],
+    });
   });
 });
 

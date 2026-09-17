@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { BarChart3,Building2,ChevronRight,LayoutDashboard,Link2,LogOut,Network,PanelLeft,Rows3,ShieldCheck,Users,X } from 'lucide-react';
+import { BarChart3,Building2,ChevronRight,LayoutDashboard,Link2,LogOut,Network,PanelLeft,Rows3,Share2,ShieldCheck,Users,X } from 'lucide-react';
 import { useState } from 'react';
 import { tr } from '@/lib/i18n';
 import { BrandLogo } from '../brand-logo';
@@ -13,6 +13,7 @@ const links=[
   {href:'/dashboard',vi:'Tổng quan',en:'Dashboard',icon:LayoutDashboard},
   {href:'/google-ads',vi:'Kết nối',en:'Connections',icon:Link2},
   {href:'/google-ads/mcc',label:'MCC',icon:Network},
+  {href:'/google-ads/account-sharing',vi:'Chia sẻ tài khoản',en:'Account sharing',icon:Share2,adminOnly:true},
   {href:'/google-ads/accounts',vi:'Tài khoản',en:'Accounts',icon:Rows3},
   {href:'/google-ads/campaigns',vi:'Chiến dịch',en:'Campaigns',icon:BarChart3},
   {href:'/google-ads/analytics',vi:'Phân tích',en:'Analytics',icon:BarChart3},
@@ -27,7 +28,7 @@ export function GoogleAdsFrame({user,children}:{user:FrameUser;children:React.Re
     <aside className={`ga-sidebar ${open?'open':''}`}>
       <div className="ga-brand"><BrandLogo decorative /><strong>David Agency MCC Manager</strong><button onClick={()=>setOpen(false)} aria-label={tr(locale,'Đóng','Close')}><X size={18}/></button></div>
       <p className="ga-nav-label">GOOGLE ADS</p>
-      <nav>{links.map(item=>{const active=item.href==='/google-ads'?pathname===item.href:pathname.startsWith(item.href);const label='label' in item?item.label:tr(locale,item.vi,item.en);return <a key={item.href} href={item.href} className={active?'active':''} onClick={()=>setOpen(false)}><item.icon size={17}/><span>{label}</span>{active&&<ChevronRight size={14}/>}</a>})}</nav>
+      <nav>{links.filter(item=>!('adminOnly' in item)||!item.adminOnly||user.role==='ADMIN').map(item=>{const active=item.href==='/google-ads'?pathname===item.href:pathname.startsWith(item.href);const label='label' in item?item.label:tr(locale,item.vi,item.en);return <a key={item.href} href={item.href} className={active?'active':''} onClick={()=>setOpen(false)}><item.icon size={17}/><span>{label}</span>{active&&<ChevronRight size={14}/>}</a>})}</nav>
       {user.role==='ADMIN'&&<><p className="ga-nav-label">{tr(locale,'QUẢN TRỊ','ADMINISTRATION')}</p><nav><a href="/admin/users"><Users size={17}/><span>{tr(locale,'Quyền nhân viên','Staff permissions')}</span></a></nav></>}
       <div className="ga-security"><ShieldCheck size={16}/><div><strong>{user.role==='ADMIN'?tr(locale,'Toàn quyền','Full access'):tr(locale,'Chỉ đọc','Read only')}</strong><small>{tr(locale,'Vai trò website','Website role')}</small></div></div>
     </aside>

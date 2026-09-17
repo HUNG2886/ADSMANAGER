@@ -12,3 +12,4 @@ export * from './errors';
 export * from './diagnostics.service';
 export * from './safe-logger';
 export * from './user-access.service';
+export * from './manager-link.service';
