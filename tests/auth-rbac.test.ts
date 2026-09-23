@@ -42,7 +42,6 @@ describe('permission matrix',()=>{
     expect(permissions).toContain(PERMISSIONS.VIEW_AUDIT_LOGS);
     expect(permissions).toContain(PERMISSIONS.VIEW_CLIENTS);
     expect(permissions).toContain(PERMISSIONS.VIEW_ACCOUNT_NOTES);
-    expect(permissions).toContain(PERMISSIONS.VIEW_APPEALS);
     expect(permissions).toContain(PERMISSIONS.EXPORT_DATA);
     expect(permissions).not.toContain(PERMISSIONS.SYNC_DATA);
     expect(permissions).not.toContain(PERMISSIONS.UPDATE_CAMPAIGN);
@@ -50,7 +49,6 @@ describe('permission matrix',()=>{
     expect(permissions).not.toContain(PERMISSIONS.MANAGE_CLIENTS);
     expect(permissions).not.toContain(PERMISSIONS.ASSIGN_ACCOUNTS);
     expect(permissions).not.toContain(PERMISSIONS.MANAGE_ACCOUNT_NOTES);
-    expect(permissions).not.toContain(PERMISSIONS.MANAGE_APPEALS);
     expect(permissions).not.toContain(PERMISSIONS.MANAGE_USERS);
   });
 

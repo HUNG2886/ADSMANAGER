@@ -1,6 +1,5 @@
 import { decryptSecret, encryptSecret } from '../../lib/encryption';
 import { mapWithConcurrency } from '../../lib/concurrency';
-import { writeAudit } from '../../lib/audit';
 import { prisma } from '../../lib/prisma';
 import { GoogleAdsClient } from './client';
 import { formatGoogleAdsError,GoogleAdsError } from './errors';
@@ -103,8 +102,6 @@ export async function syncGoogleConnection(connectionId: string) {
       }
     });
     const storedMcc = new Map<string, string>();
-    const suspendedAccountIds: string[] = [];
-
     for (const item of hierarchy.mccs.sort((a, b) => a.level - b.level)) {
       const row = await prisma.mCC.upsert({
         where: { connectionId_customerId: { connectionId, customerId: item.customerId } },
@@ -117,7 +114,7 @@ export async function syncGoogleConnection(connectionId: string) {
     for (const item of hierarchy.accounts) {
       const mccId = storedMcc.get(item.parentManagerCustomerId);
       if (!mccId) continue;
-      const account = await prisma.customerAccount.upsert({
+      await prisma.customerAccount.upsert({
         where: { mccId_customerId: { mccId, customerId: item.customerId } },
         create: {
           mccId,
@@ -144,23 +141,6 @@ export async function syncGoogleConnection(connectionId: string) {
           status: mapAccountStatus(item.status),
         },
       });
-      if (account.status === 'SUSPENDED') suspendedAccountIds.push(account.id);
-    }
-
-    if (suspendedAccountIds.length) {
-      const createdAppeals = await prisma.accountAppeal.createMany({
-        data: suspendedAccountIds.map(customerAccountId => ({ customerAccountId })),
-        skipDuplicates: true,
-      });
-      if (createdAppeals.count > 0) {
-        await writeAudit({
-          userId: connection.userId,
-          action: 'AUTO_CREATE_ACCOUNT_APPEAL_DRAFTS',
-          entityType: 'GoogleConnection',
-          entityId: connectionId,
-          metadata: { createdDrafts: createdAppeals.count, suspendedAccounts: suspendedAccountIds.length },
-        });
-      }
     }
 
     const issueCount = hierarchy.issues.length;
