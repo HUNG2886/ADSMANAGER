@@ -13,8 +13,8 @@ export function MccOwnershipBadge({
   const className = hasOwnership === true ? 'owner' : 'readonly';
   const title = tr(
     locale,
-    'Khả năng quản lý người dùng tài khoản con qua MCC này',
-    'Ability to manage child-account users through this MCC',
+    'MCC của dòng này có quyền chủ sở hữu (Owner manager) đối với tài khoản con',
+    'Whether the MCC on this row is the Owner manager of the child account',
   );
   return <span className={`ga-mcc-role ${className}`} title={title}>{label}</span>;
 }

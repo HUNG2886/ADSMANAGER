@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { CampaignService } from './campaign.service';
+import { normalizeCustomerId } from './client';
 import { googleAdsClientForConnection } from './connection.service';
 import { GoogleAdsError } from './errors';
 import { MetricsService } from './metrics.service';
@@ -19,9 +20,16 @@ export function ownershipResultFromError(error: unknown) {
   };
 }
 
+export function ownershipLoginCustomerId(mccCustomerId: string) {
+  return normalizeCustomerId(mccCustomerId);
+}
+
 async function updateMccOwnership(
-  account: { id: string; customerId: string; loginCustomerId: string; mcc: { customerId: string; manager: boolean } },
-  client: Awaited<ReturnType<typeof googleAdsClientForConnection>>['client'],
+  account: {
+    id: string;
+    customerId: string;
+    mcc: { connectionId: string; customerId: string; manager: boolean };
+  },
 ) {
   const checkedAt = new Date();
   if (!account.mcc.manager) {
@@ -32,6 +40,11 @@ async function updateMccOwnership(
     return false;
   }
   try {
+    // Ownership must be checked through the immediate MCC shown on the account row.
+    // Using the hierarchy root here can incorrectly report the root MCC's permissions
+    // as if they belonged to a nested MCC.
+    const loginCustomerId = ownershipLoginCustomerId(account.mcc.customerId);
+    const { client } = await googleAdsClientForConnection(account.mcc.connectionId, loginCustomerId);
     await new UserAccessService(client).canManageCustomerUsers(account.customerId);
     await prisma.customerAccount.update({
       where: { id: account.id },
@@ -40,7 +53,7 @@ async function updateMccOwnership(
     logGoogleAds('mcc_ownership_checked', {
       mccCustomerId: account.mcc.customerId,
       clientCustomerId: account.customerId,
-      loginCustomerId: account.loginCustomerId,
+      loginCustomerId,
     });
     return true;
   } catch (error) {
@@ -52,7 +65,7 @@ async function updateMccOwnership(
     logGoogleAds('mcc_ownership_check_failed', {
       mccCustomerId: account.mcc.customerId,
       clientCustomerId: account.customerId,
-      loginCustomerId: account.loginCustomerId,
+      loginCustomerId: account.mcc.customerId,
       error: error instanceof GoogleAdsError ? error : undefined,
     }, 'warn');
     return result.mccHasOwnership;
@@ -64,7 +77,7 @@ export async function syncGoogleAdsAccount(accountId: string) {
   if (!account) throw new Error('Không tìm thấy tài khoản Google Ads.');
   const loginCustomerId = account.mcc.manager ? account.loginCustomerId : undefined;
   const { client } = await googleAdsClientForConnection(account.mcc.connectionId, loginCustomerId);
-  const mccHasOwnership = await updateMccOwnership(account, client);
+  const mccHasOwnership = await updateMccOwnership(account);
   const campaignsPayload = await new CampaignService(client).list(account.customerId);
 
   for (const row of campaignsPayload.results ?? []) {

@@ -3,7 +3,7 @@ import { CampaignService } from '../services/google-ads/campaign.service';
 import { CustomerService } from '../services/google-ads/customer.service';
 import { UserAccessService } from '../services/google-ads/user-access.service';
 import { ManagerLinkService } from '../services/google-ads/manager-link.service';
-import { ownershipResultFromError } from '../services/google-ads/account.service';
+import { ownershipLoginCustomerId, ownershipResultFromError } from '../services/google-ads/account.service';
 const env={clientId:process.env.GOOGLE_CLIENT_ID,clientSecret:process.env.GOOGLE_CLIENT_SECRET,developerToken:process.env.GOOGLE_DEVELOPER_TOKEN,encryptionKey:process.env.ENCRYPTION_KEY,nextAuthUrl:process.env.NEXTAUTH_URL};
 afterEach(()=>{vi.restoreAllMocks();for(const[name,value]of Object.entries({GOOGLE_CLIENT_ID:env.clientId,GOOGLE_CLIENT_SECRET:env.clientSecret,GOOGLE_DEVELOPER_TOKEN:env.developerToken,ENCRYPTION_KEY:env.encryptionKey,NEXTAUTH_URL:env.nextAuthUrl})){if(value===undefined)delete process.env[name];else process.env[name]=value}});
 describe('GoogleAdsClient',()=>{
@@ -71,6 +71,11 @@ describe('Google Ads v25 pagination', () => {
 });
 
 describe('Google Ads user access', () => {
+  it('checks ownership through the immediate MCC instead of the hierarchy root', () => {
+    expect(ownershipLoginCustomerId('123-456-7890')).toBe('1234567890');
+    expect(ownershipLoginCustomerId('999-888-7777')).not.toBe('1112223333');
+  });
+
   it('checks whether an MCC context can read child-account users', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ results: [] }), { status: 200 }),

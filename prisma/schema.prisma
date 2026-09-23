@@ -60,6 +60,20 @@ enum ClientStatus {
   ARCHIVED
 }
 
+enum AppealStatus {
+  DRAFT
+  READY_TO_SUBMIT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum AppealReason {
+  DISPUTE_DECISION
+  MADE_CHANGES_TO_COMPLY
+}
+
 model User {
   id             String              @id @default(cuid())
   email          String              @unique
@@ -167,6 +181,7 @@ model CustomerAccount {
   metrics               DailyMetric[]
   clientAssignment      ClientAccountAssignment?
   notes                 AccountNote[]
+  appeal                AccountAppeal?
   syncJobs              SyncJob[]
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
@@ -175,6 +190,33 @@ model CustomerAccount {
   @@index([mccId])
   @@index([customerId])
   @@index([status])
+}
+
+model AccountAppeal {
+  id                String          @id @default(cuid())
+  customerAccountId String          @unique
+  customerAccount   CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  status            AppealStatus    @default(DRAFT)
+  reason            AppealReason?
+  suspensionReason  String?
+  correctiveActions String?
+  appealStatement   String?
+  evidenceNotes     String?
+  contactEmail      String?
+  googleCaseId      String?
+  preparedById      String?
+  reviewedById      String?
+  submittedById     String?
+  reviewedAt        DateTime?
+  submittedAt       DateTime?
+  lastSubmittedAt   DateTime?
+  outcomeAt         DateTime?
+  attemptCount      Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([lastSubmittedAt])
 }
 
 model Client {
