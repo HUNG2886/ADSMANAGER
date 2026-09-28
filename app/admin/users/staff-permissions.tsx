@@ -9,12 +9,12 @@ type Mcc={id:string;name:string;customerId:string;connection:{id:string;googleEm
 type UsersResponse={data?:{items?:Member[]}};
 type MccResponse={data?:Mcc[]};
 
-export function StaffPermissions(){
+export function StaffPermissions({refreshKey=0}:{refreshKey?:number}){
   const locale=useAppLocale();const[members,setMembers]=useState<Member[]>([]);const[mccs,setMccs]=useState<Mcc[]>([]);const[selected,setSelected]=useState<Record<string,string[]>>({});const[connectionId,setConnectionId]=useState('');const[busy,setBusy]=useState('');const[message,setMessage]=useState('');
   useEffect(()=>{Promise.all([
     fetch('/api/users').then(async response=>await response.json() as UsersResponse),
     fetch('/api/mcc').then(async response=>await response.json() as MccResponse),
-  ]).then(([users,mcc])=>{const rows=users.data?.items??[];const mccRows=mcc.data??[];setMembers(rows);setMccs(mccRows);setConnectionId(mccRows[0]?.connection.id??'');setSelected(Object.fromEntries(rows.map(item=>[item.id,item.mccIds??[]])))})},[]);
+  ]).then(([users,mcc])=>{const rows=users.data?.items??[];const mccRows=mcc.data??[];setMembers(rows);setMccs(mccRows);setConnectionId(mccRows[0]?.connection.id??'');setSelected(Object.fromEntries(rows.map(item=>[item.id,item.mccIds??[]])))})},[refreshKey]);
   function toggle(userId:string,mccId:string){setSelected(current=>({...current,[userId]:(current[userId]||[]).includes(mccId)?current[userId].filter(id=>id!==mccId):[...(current[userId]||[]),mccId]}))}
   async function save(userId:string){setBusy(userId);setMessage('');const response=await fetch('/api/users',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({id:userId,mccIds:selected[userId]||[]})});const payload=await response.json() as {error?:{message?:string}};setBusy('');setMessage(response.ok?tr(locale,'Đã lưu quyền MCC.','MCC permissions saved.'):payload.error?.message||tr(locale,'Không thể lưu quyền.','Unable to save permissions.'))}
   const staff=members.filter(item=>item.role==='STAFF');const connections=[...new Map(mccs.map(item=>[item.connection.id,item.connection])).values()];const visibleMccs=mccs.filter(item=>!connectionId||item.connection.id===connectionId);
