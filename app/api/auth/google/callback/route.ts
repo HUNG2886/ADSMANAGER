@@ -9,12 +9,13 @@ const STATE_COOKIE = 'google_login_oauth_state';
 const RETURN_COOKIE = 'google_login_return_to';
 
 function roleOf(role: string): AppRole {
+  if (role === 'DEV') return 'DEV';
   return role === 'ADMIN' ? 'ADMIN' : 'STAFF';
 }
 
 function mappedUserIdentifier(googleEmail: string) {
   const mappings = [
-    { googleEmail: process.env.DEFAULT_ADMIN_GOOGLE_EMAIL, identifier: process.env.DEFAULT_ADMIN_EMAIL },
+    { googleEmail: process.env.DEFAULT_DEV_GOOGLE_EMAIL || process.env.DEFAULT_ADMIN_GOOGLE_EMAIL, identifier: process.env.DEFAULT_DEV_EMAIL || process.env.DEFAULT_ADMIN_EMAIL },
     { googleEmail: process.env.DEFAULT_STAFF_GOOGLE_EMAIL, identifier: process.env.DEFAULT_STAFF_EMAIL },
   ];
   const match = mappings.find(item => item.googleEmail?.trim().toLowerCase() === googleEmail);

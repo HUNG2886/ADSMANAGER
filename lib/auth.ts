@@ -13,7 +13,8 @@ function isVercelRuntime() {
 }
 
 function roleOf(role: string): AppRole {
-  return role === 'ADMIN' || role === 'SUPER_ADMIN' ? 'ADMIN' : 'STAFF';
+  if (role === 'DEV' || role === 'SUPER_ADMIN') return 'DEV';
+  return role === 'ADMIN' ? 'ADMIN' : 'STAFF';
 }
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
@@ -31,15 +32,15 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   // These headers are trusted only behind the Sites hosting proxy, never on Vercel.
   const chatGPT = isVercelRuntime() ? null : await getChatGPTUser();
   if (!chatGPT) return null;
-  const adminEmail = (process.env.DEFAULT_ADMIN_EMAIL || '').trim().toLowerCase();
-  return { id: chatGPT.userId, email: chatGPT.email, name: chatGPT.displayName, role: chatGPT.email.toLowerCase() === adminEmail ? 'ADMIN' : 'STAFF', sessionVersion: 0 };
+  const devEmail = (process.env.DEFAULT_DEV_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || '').trim().toLowerCase();
+  return { id: chatGPT.userId, email: chatGPT.email, name: chatGPT.displayName, role: chatGPT.email.toLowerCase() === devEmail ? 'DEV' : 'STAFF', sessionVersion: 0 };
 }
 
 export { hashPassword, verifyPassword } from './password';
 
 function environmentCredential(email: string, password: string) {
   const candidates: Array<{ email?: string; password?: string; role: AppRole; name: string }> = [
-    { email: process.env.DEFAULT_ADMIN_EMAIL || process.env.ADMIN_EMAIL, password: process.env.DEFAULT_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD, role: 'ADMIN', name: 'Quản trị viên' },
+    { email: process.env.DEFAULT_DEV_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || process.env.ADMIN_EMAIL, password: process.env.DEFAULT_DEV_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD, role: 'DEV', name: 'Nhà phát triển' },
     { email: process.env.DEFAULT_STAFF_EMAIL, password: process.env.DEFAULT_STAFF_PASSWORD, role: 'STAFF', name: 'Cộng tác viên' },
   ];
   return candidates.find(item => item.email?.trim().toLowerCase() === email && item.password === password) || null;

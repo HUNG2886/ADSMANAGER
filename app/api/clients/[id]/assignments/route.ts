@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { fail, ok, requestIp } from '@/lib/api';
 import { writeAudit } from '@/lib/audit';
 import { PERMISSIONS } from '@/lib/permissions';
+import { allowedMccIds, canAccessClient } from '@/lib/data-access';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/rbac';
 
@@ -13,9 +14,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail('INVALID_ARGUMENT', 'Danh sách tài khoản không hợp lệ.', 422);
+  if (!await canAccessClient(access.user, id)) return fail('FORBIDDEN', 'Bạn không có quyền gán tài khoản cho khách hàng này.', 403);
   const client = await prisma.client.findUnique({ where: { id }, select: { id: true, name: true } });
   if (!client) return fail('NOT_FOUND', 'Không tìm thấy khách hàng.', 404);
-  const accounts = parsed.data.accountIds.length ? await prisma.customerAccount.findMany({ where: { id: { in: parsed.data.accountIds } }, select: { id: true } }) : [];
+  const allowed = await allowedMccIds(access.user);
+  const accounts = parsed.data.accountIds.length ? await prisma.customerAccount.findMany({ where: { id: { in: parsed.data.accountIds }, ...(allowed === null ? {} : { mccId: { in: allowed } }) }, select: { id: true } }) : [];
   if (accounts.length !== parsed.data.accountIds.length) return fail('ACCOUNT_NOT_FOUND', 'Một hoặc nhiều tài khoản Google Ads không tồn tại.', 404);
 
   await prisma.$transaction(async tx => {

@@ -47,12 +47,13 @@ Campaign mutations luôn đi qua backend. UI yêu cầu xác nhận, backend ki�
 
 ## Đăng nhập và phân quyền
 
-- `ADMIN`: toàn quyền, bao gồm kết nối MCC, đồng bộ, sửa campaign, cài đặt và quản lý user.
-- `STAFF`: chỉ đọc MCC được gán. Quyền xuất CSV có thể tắt bằng `STAFF_EXPORT_ENABLED=false`.
+- `DEV`: quản trị nền tảng và là vai trò duy nhất được thêm, sửa, đình chỉ hoặc xóa tài khoản đăng nhập.
+- `ADMIN`: quản trị một khách hàng độc lập; chỉ quản lý kết nối, MCC, account, campaign và CRM do chính tài khoản đó sở hữu. ADMIN không xem hoặc quản lý ADMIN khác.
+- `STAFF`: chỉ đọc MCC được DEV gán. Quyền xuất CSV có thể tắt bằng `STAFF_EXPORT_ENABLED=false`.
 - Session được mã hoá trong cookie `HttpOnly`, `SameSite=Lax`; thời hạn 12 giờ hoặc 30 ngày khi chọn ghi nhớ.
 - Mật khẩu mới dùng Argon2id; hash bcrypt cũ chỉ được giữ để nâng cấp tự động sau lần đăng nhập thành công. Khoá user, reset password và đăng xuất tất cả phiên đều thu hồi session cũ.
-- Khởi tạo ADMIN/STAFF bằng `DEFAULT_ADMIN_*`, `DEFAULT_STAFF_*` và `npm run db:seed`; không hard-code mật khẩu production.
-- Nếu username website không phải email Google, đặt `DEFAULT_ADMIN_GOOGLE_EMAIL` hoặc `DEFAULT_STAFF_GOOGLE_EMAIL` để liên kết lần đăng nhập Google đầu tiên. Sau đó hệ thống khoá liên kết bằng Google subject ID.
+- Khởi tạo DEV/STAFF bằng `DEFAULT_DEV_*`, `DEFAULT_STAFF_*` và `npm run db:seed`; không hard-code mật khẩu production. `DEFAULT_ADMIN_*` cũ vẫn được hỗ trợ làm fallback để triển khai hiện tại không bị gián đoạn.
+- Nếu username website không phải email Google, đặt `DEFAULT_DEV_GOOGLE_EMAIL` hoặc `DEFAULT_STAFF_GOOGLE_EMAIL` để liên kết lần đăng nhập Google đầu tiên. Sau đó hệ thống khoá liên kết bằng Google subject ID.
 
 ## CRM và chi tiêu
 
@@ -63,7 +64,7 @@ Campaign mutations luôn đi qua backend. UI yêu cầu xác nhận, backend ki�
 ## Deploy Vercel
 
 1. Import GitHub repository và giữ Framework Preset là **Next.js**. Không đặt Output Directory; Next.js dùng `.next` mặc định.
-2. Thêm `AUTH_SECRET`, `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_PASSWORD`, `DEFAULT_STAFF_EMAIL`, `DEFAULT_STAFF_PASSWORD`, `DATABASE_URL`, `DIRECT_URL`, `DATABASE_SCHEMA=adsmanager` và `NEXTAUTH_URL`. `DATABASE_URL` dùng endpoint Neon pooled cho ứng dụng; `DIRECT_URL` dùng endpoint không có hậu tố `-pooler` cho Prisma migration/seed. Nếu dùng Google Sign-In, thêm `DEFAULT_ADMIN_GOOGLE_EMAIL`/`DEFAULT_STAFF_GOOGLE_EMAIL` khi identifier website khác email Google.
+2. Thêm `AUTH_SECRET`, `DEFAULT_DEV_EMAIL`, `DEFAULT_DEV_PASSWORD`, `DEFAULT_STAFF_EMAIL`, `DEFAULT_STAFF_PASSWORD`, `DATABASE_URL`, `DIRECT_URL`, `DATABASE_SCHEMA=adsmanager` và `NEXTAUTH_URL`. `DATABASE_URL` dùng endpoint Neon pooled cho ứng dụng; `DIRECT_URL` dùng endpoint không có hậu tố `-pooler` cho Prisma migration/seed. Nếu dùng Google Sign-In, thêm `DEFAULT_DEV_GOOGLE_EMAIL`/`DEFAULT_STAFF_GOOGLE_EMAIL` khi identifier website khác email Google.
 3. Thêm `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_DEVELOPER_TOKEN`, `ENCRYPTION_KEY`; tuyệt đối không dùng tiền tố `NEXT_PUBLIC_` cho các biến này.
 4. Trong Google Cloud Console, thêm hai redirect URI chính xác: `${NEXTAUTH_URL}/api/auth/google-ads/callback` và `${NEXTAUTH_URL}/api/auth/google/callback`.
 5. Build Vercel tự chạy `prisma migrate deploy` và seed idempotent trước khi build Next.js. Seed chỉ upsert hai tài khoản bootstrap theo environment và không tạo duplicate.

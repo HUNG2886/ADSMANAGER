@@ -4,7 +4,7 @@ import { useEffect,useState } from 'react';
 import { tr } from '@/lib/i18n';
 import { useAppLocale } from '@/app/locale-provider';
 
-type Member={id:string;name:string|null;email:string;role:'ADMIN'|'STAFF';status:string;mccIds:string[]};
+type Member={id:string;name:string|null;email:string;role:'DEV'|'ADMIN'|'STAFF';status:string;mccIds:string[]};
 type Mcc={id:string;name:string;customerId:string;connection:{id:string;googleEmail:string}};
 type UsersResponse={data?:{items?:Member[]}};
 type MccResponse={data?:Mcc[]};

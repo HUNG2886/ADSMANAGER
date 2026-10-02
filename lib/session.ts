@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
 export const SESSION_COOKIE = 'ads_manager_session';
-export type AppRole = 'ADMIN' | 'STAFF';
+export type AppRole = 'DEV' | 'ADMIN' | 'STAFF';
 
 export type SessionUser = {
   id: string;
@@ -47,7 +47,7 @@ export function readSessionToken(token: string | undefined): SessionPayload | nu
     decipher.setAuthTag(Buffer.from(tagValue, 'base64url'));
     const plaintext = Buffer.concat([decipher.update(Buffer.from(encryptedValue, 'base64url')), decipher.final()]).toString('utf8');
     const payload = JSON.parse(plaintext) as SessionPayload;
-    if (!payload.id || !payload.email || !['ADMIN','STAFF'].includes(payload.role) || payload.exp <= Math.floor(Date.now() / 1000)) return null;
+    if (!payload.id || !payload.email || !['DEV','ADMIN','STAFF'].includes(payload.role) || payload.exp <= Math.floor(Date.now() / 1000)) return null;
     return payload;
   } catch {
     return null;

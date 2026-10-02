@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { fail, ok, requestIp } from '@/lib/api';
 import { writeAudit } from '@/lib/audit';
 import { clientInclude, clientSchema } from '@/lib/crm';
+import { canAccessClient } from '@/lib/data-access';
 import { PERMISSIONS } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/rbac';
@@ -14,6 +15,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const parsed = updateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail('INVALID_ARGUMENT', 'Thông tin khách hàng chưa hợp lệ.', 422);
+  if (!await canAccessClient(access.user, id)) return fail('FORBIDDEN', 'Bạn không có quyền sửa khách hàng này.', 403);
   const existing = await prisma.client.findUnique({ where: { id }, select: { id: true, name: true } });
   if (!existing) return fail('NOT_FOUND', 'Không tìm thấy khách hàng.', 404);
   const client = await prisma.client.update({ where: { id }, data: parsed.data, include: clientInclude });
@@ -25,6 +27,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const access = await requirePermission(PERMISSIONS.MANAGE_CLIENTS);
   if (access.error) return access.error;
   const { id } = await params;
+  if (!await canAccessClient(access.user, id)) return fail('FORBIDDEN', 'Bạn không có quyền lưu trữ khách hàng này.', 403);
   const existing = await prisma.client.findUnique({ where: { id }, select: { id: true, name: true } });
   if (!existing) return fail('NOT_FOUND', 'Không tìm thấy khách hàng.', 404);
   const client = await prisma.client.update({ where: { id }, data: { status: 'ARCHIVED' }, include: clientInclude });

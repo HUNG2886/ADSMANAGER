@@ -5,7 +5,7 @@ import {diagnoseGoogleAdsConnection,googleAdsEnvironmentDiagnostics} from '@/ser
 
 export async function POST(request:Request){
   const access=await requireAdmin();if(access.error)return access.error;
-  const connections=await prisma.googleConnection.findMany({where:{userId:access.user.id,status:{not:'DISCONNECTED'}},select:{id:true},orderBy:{createdAt:'asc'}});
-  const results=[];for(const connection of connections)results.push(await diagnoseGoogleAdsConnection(connection.id,access.user.id));
+  const connections=await prisma.googleConnection.findMany({where:{...(access.user.role==='DEV'?{}:{userId:access.user.id}),status:{not:'DISCONNECTED'}},select:{id:true,userId:true},orderBy:{createdAt:'asc'}});
+  const results=[];for(const connection of connections)results.push(await diagnoseGoogleAdsConnection(connection.id,connection.userId));
   return ok({environment:googleAdsEnvironmentDiagnostics(request.url),connections:results,checkedAt:new Date().toISOString()});
 }

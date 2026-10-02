@@ -8,6 +8,7 @@ datasource db {
 }
 
 enum Role {
+  DEV
   ADMIN
   STAFF
 }
@@ -76,6 +77,7 @@ model User {
   mccPermissions UserMCCPermission[]
   accountNotes   AccountNote[]
   auditLogs      AuditLog[]
+  clients        Client[]
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 }
@@ -179,6 +181,8 @@ model CustomerAccount {
 
 model Client {
   id                 String                    @id @default(cuid())
+  ownerId            String?
+  owner              User?                     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   name               String
   company            String?
   email              String?
@@ -192,6 +196,7 @@ model Client {
   updatedAt          DateTime                  @updatedAt
 
   @@index([name])
+  @@index([ownerId])
   @@index([email])
   @@index([status])
 }

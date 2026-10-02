@@ -4,7 +4,7 @@ import { readSessionToken,SESSION_COOKIE } from './lib/session';
 export function proxy(request:NextRequest){
   const session=readSessionToken(request.cookies.get(SESSION_COOKIE)?.value);
   if(!session){const login=new URL('/login',request.url);login.searchParams.set('returnTo',`${request.nextUrl.pathname}${request.nextUrl.search}`);return NextResponse.redirect(login)}
-  if(request.nextUrl.pathname.startsWith('/admin')&&session.role!=='ADMIN')return NextResponse.redirect(new URL('/403',request.url));
+  if(request.nextUrl.pathname.startsWith('/admin')&&session.role!=='DEV')return NextResponse.redirect(new URL('/403',request.url));
   return NextResponse.next();
 }
 

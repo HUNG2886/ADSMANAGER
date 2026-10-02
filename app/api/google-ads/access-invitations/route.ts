@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { fail, ok, requestIp } from '@/lib/api';
 import { writeAudit } from '@/lib/audit';
+import { canAccessAccount, canAccessMcc } from '@/lib/data-access';
 import { prisma } from '@/lib/prisma';
 import { PERMISSIONS } from '@/lib/permissions';
 import { requirePermission } from '@/lib/rbac';
@@ -29,6 +30,10 @@ export async function POST(request: Request) {
         select: { id: true, customerId: true, loginCustomerId: true, name: true, mcc: { select: { connectionId: true } } },
       });
   if (!target) return fail('NOT_FOUND', 'Không tìm thấy tài khoản Google Ads.', 404);
+  const canAccessTarget = parsed.data.targetType === 'MCC'
+    ? await canAccessMcc(access.user, parsed.data.targetId)
+    : await canAccessAccount(access.user, parsed.data.targetId);
+  if (!canAccessTarget) return fail('FORBIDDEN', 'Bạn không có quyền chia sẻ tài khoản Google Ads này.', 403);
 
   const connectionId = 'connectionId' in target ? target.connectionId : target.mcc.connectionId;
   try {

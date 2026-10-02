@@ -8,7 +8,7 @@ import { AccountSharingBoard } from './account-sharing-board';
 export default async function AccountSharingPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login?returnTo=/google-ads/account-sharing');
-  if (user.role !== 'ADMIN') redirect('/403');
+  if (user.role === 'STAFF') redirect('/403');
   const locale = await getAppLocale();
   return <>
     <div className="ga-page-head">

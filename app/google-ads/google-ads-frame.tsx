@@ -8,7 +8,7 @@ import { BrandLogo } from '../brand-logo';
 import { AppLanguageSwitcher } from '../language-switcher';
 import { useAppLocale } from '../locale-provider';
 
-type FrameUser={name:string;email:string;role:'ADMIN'|'STAFF'};
+type FrameUser={name:string;email:string;role:'DEV'|'ADMIN'|'STAFF'};
 const links=[
   {href:'/dashboard',vi:'Tổng quan',en:'Dashboard',icon:LayoutDashboard},
   {href:'/google-ads',vi:'Kết nối',en:'Connections',icon:Link2},
@@ -28,9 +28,9 @@ export function GoogleAdsFrame({user,children}:{user:FrameUser;children:React.Re
     <aside className={`ga-sidebar ${open?'open':''}`}>
       <div className="ga-brand"><BrandLogo decorative /><strong>David Agency MCC Manager</strong><button onClick={()=>setOpen(false)} aria-label={tr(locale,'Đóng','Close')}><X size={18}/></button></div>
       <p className="ga-nav-label">GOOGLE ADS</p>
-      <nav>{links.filter(item=>!('adminOnly' in item)||!item.adminOnly||user.role==='ADMIN').map(item=>{const active=item.href==='/google-ads'?pathname===item.href:pathname.startsWith(item.href);const label='label' in item?item.label:tr(locale,item.vi,item.en);return <a key={item.href} href={item.href} className={active?'active':''} onClick={()=>setOpen(false)}><item.icon size={17}/><span>{label}</span>{active&&<ChevronRight size={14}/>}</a>})}</nav>
-      {user.role==='ADMIN'&&<><p className="ga-nav-label">{tr(locale,'QUẢN TRỊ','ADMINISTRATION')}</p><nav><a href="/admin/users" className={pathname.startsWith('/admin/users')?'active':''}><Users size={17}/><span>{tr(locale,'Tài khoản truy cập','Access accounts')}</span>{pathname.startsWith('/admin/users')&&<ChevronRight size={14}/>}</a></nav></>}
-      <div className="ga-security"><ShieldCheck size={16}/><div><strong>{user.role==='ADMIN'?tr(locale,'Toàn quyền','Full access'):tr(locale,'Chỉ đọc','Read only')}</strong><small>{tr(locale,'Vai trò website','Website role')}</small></div></div>
+      <nav>{links.filter(item=>!('adminOnly' in item)||!item.adminOnly||user.role!=='STAFF').map(item=>{const active=item.href==='/google-ads'?pathname===item.href:pathname.startsWith(item.href);const label='label' in item?item.label:tr(locale,item.vi,item.en);return <a key={item.href} href={item.href} className={active?'active':''} onClick={()=>setOpen(false)}><item.icon size={17}/><span>{label}</span>{active&&<ChevronRight size={14}/>}</a>})}</nav>
+      {user.role==='DEV'&&<><p className="ga-nav-label">{tr(locale,'QUẢN TRỊ NỀN TẢNG','PLATFORM ADMINISTRATION')}</p><nav><a href="/admin/users" className={pathname.startsWith('/admin/users')?'active':''}><Users size={17}/><span>{tr(locale,'Tài khoản khách hàng','Customer accounts')}</span>{pathname.startsWith('/admin/users')&&<ChevronRight size={14}/>}</a></nav></>}
+      <div className="ga-security"><ShieldCheck size={16}/><div><strong>{user.role==='DEV'?tr(locale,'Nhà phát triển','Developer'):user.role==='ADMIN'?tr(locale,'Quản trị dữ liệu riêng','Own-data admin'):tr(locale,'Chỉ đọc','Read only')}</strong><small>{tr(locale,'Vai trò website','Website role')}</small></div></div>
     </aside>
     <section className="ga-workspace">
       <header className="ga-topbar"><button className="ga-menu" onClick={()=>setOpen(true)} aria-label={tr(locale,'Mở menu','Open menu')}><PanelLeft size={20}/></button><a href="/dashboard" className="ga-mobile-brand"><BrandLogo decorative /> <span>David Agency MCC Manager</span></a><AppLanguageSwitcher/><div className="ga-user"><span>{user.name.slice(0,2).toUpperCase()}</span><div><strong>{user.name}</strong><small>{user.email}</small></div><button onClick={logout} aria-label={tr(locale,'Đăng xuất','Sign out')}><LogOut size={16}/></button></div></header>

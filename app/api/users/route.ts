@@ -3,7 +3,7 @@ import { fail, ok } from '@/lib/api';
 import { writeAudit } from '@/lib/audit';
 import { hashPassword } from '@/lib/auth';
 import { hasPostgres, prisma } from '@/lib/prisma';
-import { requireAdmin } from '@/lib/rbac';
+import { requireDev } from '@/lib/rbac';
 
 const password = z.string().min(10).max(128).regex(/[a-zA-Z]/).regex(/[0-9]/);
 const identifier = z.string().trim().min(3).max(180).transform(value => value.toLowerCase()).refine(value => z.string().email().safeParse(value).success || /^[a-z0-9._-]+$/.test(value));
@@ -24,16 +24,12 @@ const updateSchema = z.object({
   mccIds: z.array(z.string().min(1)).max(100).optional(),
 });
 
-async function ensureAnotherActiveAdmin(targetId: string) {
-  return (await prisma.user.count({ where: { id: { not: targetId }, role: 'ADMIN', status: 'ACTIVE' } })) > 0;
-}
-
 export async function GET() {
-  const access = await requireAdmin();
+  const access = await requireDev();
   if (access.error) return access.error;
   if (!hasPostgres()) {
     return ok({
-      items: [{ id: access.user.id, name: access.user.name, email: access.user.email, role: 'ADMIN', status: 'ACTIVE', lastLoginAt: null, createdAt: null, mccIds: [], hasPassword: true }],
+      items: [{ id: access.user.id, name: access.user.name, email: access.user.email, role: 'DEV', status: 'ACTIVE', lastLoginAt: null, createdAt: null, mccIds: [], hasPassword: true }],
       databaseConfigured: false,
     });
   }
@@ -62,7 +58,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const access = await requireAdmin();
+  const access = await requireDev();
   if (access.error) return access.error;
   if (!hasPostgres()) return fail('DATABASE_REQUIRED', 'Hãy cấu hình DATABASE_URL để lưu tài khoản.', 503);
   const parsed = createSchema.safeParse(await request.json().catch(() => null));
@@ -86,7 +82,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const access = await requireAdmin();
+  const access = await requireDev();
   if (access.error) return access.error;
   if (!hasPostgres()) return fail('DATABASE_REQUIRED', 'Hãy cấu hình DATABASE_URL để cập nhật tài khoản.', 503);
   const parsed = updateSchema.safeParse(await request.json().catch(() => null));
@@ -96,9 +92,13 @@ export async function PATCH(request: Request) {
     select: { id: true, email: true, role: true, status: true },
   });
   if (!current) return fail('NOT_FOUND', 'Không tìm thấy tài khoản.', 404);
+  if (current.role === 'DEV') return fail('DEV_ACCOUNT_PROTECTED', 'Tài khoản DEV chỉ được quản lý bằng biến môi trường triển khai.', 403);
+  if (parsed.data.mccIds && (parsed.data.role ?? current.role) !== 'STAFF') return fail('STAFF_MCC_ONLY', 'Chỉ tài khoản STAFF mới được gán quyền MCC.', 422);
   if (parsed.data.email && parsed.data.email !== current.email && await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } })) return fail('EMAIL_EXISTS', 'Email hoặc tên đăng nhập này đã tồn tại.', 409);
-  const removesActiveAdmin = current.role === 'ADMIN' && current.status === 'ACTIVE' && (parsed.data.role === 'STAFF' || parsed.data.status === 'SUSPENDED');
-  if (removesActiveAdmin && !await ensureAnotherActiveAdmin(current.id)) return fail('LAST_ADMIN_REQUIRED', 'Hệ thống phải luôn có ít nhất một ADMIN đang hoạt động.', 409);
+  if (parsed.data.mccIds) {
+    const validMccCount = await prisma.mCC.count({ where: { id: { in: parsed.data.mccIds } } });
+    if (validMccCount !== new Set(parsed.data.mccIds).size) return fail('MCC_NOT_FOUND', 'Một hoặc nhiều MCC không tồn tại.', 404);
+  }
 
   const emailChanged = Boolean(parsed.data.email && parsed.data.email !== current.email);
   const roleChanged = Boolean(parsed.data.role && parsed.data.role !== current.role);
@@ -140,7 +140,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const access = await requireAdmin();
+  const access = await requireDev();
   if (access.error) return access.error;
   if (!hasPostgres()) return fail('DATABASE_REQUIRED', 'Hãy cấu hình DATABASE_URL để xóa tài khoản.', 503);
   const id = new URL(request.url).searchParams.get('id');
@@ -148,7 +148,7 @@ export async function DELETE(request: Request) {
   if (id === access.user.id) return fail('SELF_PROTECTION', 'Bạn không thể xóa tài khoản đang đăng nhập.', 409);
   const target = await prisma.user.findUnique({ where: { id }, select: { id: true, email: true, role: true, status: true } });
   if (!target) return fail('NOT_FOUND', 'Không tìm thấy tài khoản.', 404);
-  if (target.role === 'ADMIN' && target.status === 'ACTIVE' && !await ensureAnotherActiveAdmin(id)) return fail('LAST_ADMIN_REQUIRED', 'Hệ thống phải luôn có ít nhất một ADMIN đang hoạt động.', 409);
+  if (target.role === 'DEV') return fail('DEV_ACCOUNT_PROTECTED', 'Không thể xóa tài khoản DEV khỏi trang quản trị.', 403);
   const ownedConnections = await prisma.googleConnection.count({ where: { userId: id } });
   if (ownedConnections > 0) return fail('USER_OWNS_GOOGLE_DATA', 'Tài khoản này đang sở hữu kết nối Google Ads. Hãy đình chỉ tài khoản thay vì xóa để bảo toàn dữ liệu MCC.', 409);
   await prisma.user.delete({ where: { id } });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { fail, ok } from '@/lib/api';
-import { allowedMccIds } from '@/lib/data-access';
+import { allowedMccIds, canAccessConnection } from '@/lib/data-access';
 import { mapWithConcurrency } from '@/lib/concurrency';
 import { PERMISSIONS } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
@@ -31,11 +31,7 @@ export async function POST(request: Request) {
 
   const { after, connectionId } = parsed.data;
   if (connectionId) {
-    const connection = await prisma.googleConnection.findFirst({
-      where: { id: connectionId, userId: access.user.id, status: { not: 'DISCONNECTED' } },
-      select: { id: true },
-    });
-    if (!connection) {
+    if (!await canAccessConnection(access.user, connectionId)) {
       return fail('CONNECTION_NOT_FOUND', 'Không tìm thấy kết nối Google Ads.', 404);
     }
   }

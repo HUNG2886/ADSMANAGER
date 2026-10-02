@@ -15,6 +15,11 @@ describe('authentication session',()=>{
     expect(readSessionToken(`${token}tampered`)).toBeNull();
   });
 
+  it('encrypts and validates a DEV session',()=>{
+    const token=createSessionToken({id:'dev-1',email:'dev@example.com',name:'Developer',role:'DEV',sessionVersion:1});
+    expect(readSessionToken(token)).toMatchObject({id:'dev-1',role:'DEV',sessionVersion:1});
+  });
+
   it('uses 12-hour and 30-day secure HttpOnly cookie policies',()=>{
     const short=sessionCookieOptions(false);const remembered=sessionCookieOptions(true);
     expect(short).toMatchObject({httpOnly:true,sameSite:'lax',path:'/'});
@@ -32,8 +37,16 @@ describe('authentication session',()=>{
 describe('permission matrix',()=>{
   afterEach(()=>{if(ORIGINAL_EXPORT===undefined)delete process.env.STAFF_EXPORT_ENABLED;else process.env.STAFF_EXPORT_ENABLED=ORIGINAL_EXPORT});
 
-  it('gives ADMIN all permissions',()=>{
-    expect(permissionsFor('ADMIN')).toEqual(expect.arrayContaining(Object.values(PERMISSIONS)));
+  it('gives ADMIN operational permissions but not platform user management',()=>{
+    const permissions=permissionsFor('ADMIN');
+    expect(permissions).toContain(PERMISSIONS.CONNECT_MCC);
+    expect(permissions).toContain(PERMISSIONS.MANAGE_CLIENTS);
+    expect(permissions).not.toContain(PERMISSIONS.MANAGE_USERS);
+    expect(permissions).not.toContain(PERMISSIONS.MANAGE_SETTINGS);
+  });
+
+  it('gives DEV all platform permissions',()=>{
+    expect(permissionsFor('DEV')).toEqual(expect.arrayContaining(Object.values(PERMISSIONS)));
   });
 
   it('keeps STAFF strictly read-only',()=>{

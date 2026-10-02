@@ -14,10 +14,15 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const query = (url.searchParams.get('q') || '').trim();
   const status = url.searchParams.get('status');
+  const clientScope = access.user.role === 'DEV'
+    ? {}
+    : access.user.role === 'ADMIN'
+      ? { ownerId: access.user.id }
+      : { accountAssignments: { some: { customerAccount: { mccId: { in: allowed ?? [] } } } } };
   const items = await prisma.client.findMany({
     where: {
       AND: [
-        allowed === null ? {} : { accountAssignments: { some: { customerAccount: { mccId: { in: allowed } } } } },
+        clientScope,
         status && status !== 'ALL' ? { status: status === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE' } : {},
         query ? { OR: [{ name: { contains: query, mode: 'insensitive' } }, { email: { contains: query, mode: 'insensitive' } }, { rentalAccount: { contains: query, mode: 'insensitive' } }] } : {},
       ],
@@ -34,7 +39,7 @@ export async function POST(request: Request) {
   if (!hasPostgres()) return fail('DATABASE_REQUIRED', 'CRM khách hàng cần PostgreSQL.', 503);
   const parsed = clientSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail('INVALID_ARGUMENT', 'Thông tin khách hàng chưa hợp lệ.', 422);
-  const client = await prisma.client.create({ data: parsed.data, include: clientInclude });
+  const client = await prisma.client.create({ data: { ...parsed.data, ownerId: access.user.id }, include: clientInclude });
   await writeAudit({ userId: access.user.id, userEmail: access.user.email, userName: access.user.name, action: 'CREATE_CLIENT', entityType: 'Client', entityId: client.id, metadata: { name: client.name }, ipAddress: requestIp(request) });
   return ok(client, 201);
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { fail, ok, requestIp } from '@/lib/api';
 import { writeAudit } from '@/lib/audit';
+import { canAccessAccount, canAccessMcc } from '@/lib/data-access';
 import { PERMISSIONS } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/rbac';
@@ -88,6 +89,10 @@ export async function DELETE(request: Request) {
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail('INVALID_INPUT', 'Thông tin xác nhận không hợp lệ.', 400);
+  const canAccessTarget = parsed.data.targetType === 'MCC'
+    ? await canAccessMcc(access.user, parsed.data.targetId)
+    : await canAccessAccount(access.user, parsed.data.targetId);
+  if (!canAccessTarget) return fail('FORBIDDEN', 'Bạn không có quyền sửa tài khoản Google Ads này.', 403);
 
   const target = await resolveTarget(parsed.data.targetType, parsed.data.targetId);
   if (!target) return fail('NOT_FOUND', 'Không tìm thấy tài khoản Google Ads.', 404);

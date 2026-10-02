@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { fail,ok,requestIp } from '@/lib/api';
 import { writeAudit } from '@/lib/audit';
+import { canAccessAccount } from '@/lib/data-access';
 import { prisma } from '@/lib/prisma';
 import { PERMISSIONS } from '@/lib/permissions';
 import { requirePermission } from '@/lib/rbac';
@@ -15,6 +16,7 @@ export async function PATCH(request:Request){
   const access=await requirePermission(PERMISSIONS.UPDATE_CAMPAIGN);if(access.error)return access.error;
   const parsed=schema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return fail('INVALID_ARGUMENT','Dữ liệu chiến dịch không hợp lệ.',422);
   const campaign=await prisma.campaign.findUnique({where:{id:parsed.data.id},include:{customerAccount:{include:{mcc:true}}}});if(!campaign)return fail('NOT_FOUND','Không tìm thấy chiến dịch.',404);
+  if(!await canAccessAccount(access.user,campaign.customerAccountId))return fail('FORBIDDEN','Bạn không có quyền cập nhật chiến dịch này.',403);
   try{
     const login=campaign.customerAccount.mcc.manager?campaign.customerAccount.loginCustomerId:undefined;
     logGoogleAds('campaign_mutation_requested',{mccCustomerId:campaign.customerAccount.mcc.customerId,clientCustomerId:campaign.customerAccount.customerId,loginCustomerId:login});

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { fail, ok, requestIp } from '@/lib/api';
 import { writeAudit } from '@/lib/audit';
+import { canAccessAccount, canAccessMcc } from '@/lib/data-access';
 import { prisma } from '@/lib/prisma';
 import { PERMISSIONS } from '@/lib/permissions';
 import { requirePermission } from '@/lib/rbac';
@@ -78,6 +79,10 @@ function googleError(error: unknown, fallbackCode: string, fallbackMessage: stri
   return fail(fallbackCode, fallbackMessage, 502);
 }
 
+async function canAccessTarget(user: Parameters<typeof canAccessMcc>[0], targetType: 'MCC' | 'ACCOUNT', targetId: string) {
+  return targetType === 'MCC' ? canAccessMcc(user, targetId) : canAccessAccount(user, targetId);
+}
+
 export async function GET(request: Request) {
   const access = await requirePermission(PERMISSIONS.SHARE_ACCOUNT_ACCESS);
   if (access.error) return access.error;
@@ -87,6 +92,7 @@ export async function GET(request: Request) {
     targetId: url.searchParams.get('targetId'),
   });
   if (!parsed.success) return fail('INVALID_INPUT', 'Tài khoản Google Ads không hợp lệ.', 400);
+  if (!await canAccessTarget(access.user, parsed.data.targetType, parsed.data.targetId)) return fail('FORBIDDEN', 'Bạn không có quyền xem tài khoản Google Ads này.', 403);
   const target = await resolveTarget(parsed.data.targetType, parsed.data.targetId);
   if (!target) return fail('NOT_FOUND', 'Không tìm thấy tài khoản Google Ads.', 404);
 
@@ -110,6 +116,7 @@ export async function DELETE(request: Request) {
   if (access.error) return access.error;
   const parsed = removeSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail('INVALID_INPUT', 'Email hoặc tài khoản Google Ads không hợp lệ.', 400);
+  if (!await canAccessTarget(access.user, parsed.data.targetType, parsed.data.targetId)) return fail('FORBIDDEN', 'Bạn không có quyền sửa tài khoản Google Ads này.', 403);
   const target = await resolveTarget(parsed.data.targetType, parsed.data.targetId);
   if (!target) return fail('NOT_FOUND', 'Không tìm thấy tài khoản Google Ads.', 404);
   const emailAddress = parsed.data.emailAddress.trim().toLowerCase();

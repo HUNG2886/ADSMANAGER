@@ -7,7 +7,8 @@ import { dateLocale, tr } from '@/lib/i18n';
 import { StaffPermissions } from './staff-permissions';
 import styles from './user-administration.module.css';
 
-type Role = 'ADMIN' | 'STAFF';
+type EditableRole = 'ADMIN' | 'STAFF';
+type Role = 'DEV' | EditableRole;
 type Status = 'ACTIVE' | 'SUSPENDED';
 type Member = {
   id: string;
@@ -23,7 +24,7 @@ type Member = {
 type UsersData = { items: Member[]; databaseConfigured: boolean };
 type ApiEnvelope<T> = { data?: T; error?: { message?: string } };
 type Editor = 'new' | Member | null;
-type FormState = { name: string; email: string; password: string; confirmPassword: string; role: Role; status: Status };
+type FormState = { name: string; email: string; password: string; confirmPassword: string; role: EditableRole; status: Status };
 
 const emptyForm: FormState = { name: '', email: '', password: '', confirmPassword: '', role: 'STAFF', status: 'ACTIVE' };
 
@@ -120,6 +121,7 @@ function UserManagement({ currentUserId, onChanged }: { currentUserId: string; o
   }
 
   function openEdit(member: Member) {
+    if (member.role === 'DEV') return;
     setEditor(member);
     setForm({ name: member.name || '', email: member.email, password: '', confirmPassword: '', role: member.role, status: member.status });
     setError('');
@@ -207,7 +209,7 @@ function UserManagement({ currentUserId, onChanged }: { currentUserId: string; o
     <div className={styles.toolbar}>
       <label className={styles.search}><Search size={15}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={tr(locale, 'Tìm tên, email hoặc tên đăng nhập', 'Search name, email, or username')}/></label>
       <select value={roleFilter} onChange={event => setRoleFilter(event.target.value as 'ALL' | Role)} aria-label={tr(locale, 'Lọc vai trò', 'Filter by role')}>
-        <option value="ALL">{tr(locale, 'Tất cả vai trò', 'All roles')}</option><option value="ADMIN">ADMIN</option><option value="STAFF">STAFF</option>
+        <option value="ALL">{tr(locale, 'Tất cả vai trò', 'All roles')}</option><option value="DEV">DEV</option><option value="ADMIN">ADMIN</option><option value="STAFF">STAFF</option>
       </select>
       <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as 'ALL' | Status)} aria-label={tr(locale, 'Lọc trạng thái', 'Filter by status')}>
         <option value="ALL">{tr(locale, 'Tất cả trạng thái', 'All statuses')}</option><option value="ACTIVE">{tr(locale, 'Hoạt động', 'Active')}</option><option value="SUSPENDED">{tr(locale, 'Đình chỉ', 'Suspended')}</option>
@@ -222,11 +224,11 @@ function UserManagement({ currentUserId, onChanged }: { currentUserId: string; o
           {loading && <tr><td colSpan={6} className={styles.empty}>{tr(locale, 'Đang tải tài khoản...', 'Loading accounts...')}</td></tr>}
           {!loading && visibleMembers.map((member, index) => <tr key={member.id}>
             <td><div className={styles.identity}><span data-tone={index % 4}>{(member.name || member.email).slice(0, 2).toUpperCase()}</span><div><strong>{member.name || tr(locale, 'Chưa đặt tên', 'Unnamed')}{member.id === currentUserId && <em>{tr(locale, 'Bạn', 'You')}</em>}</strong><small>{member.email}</small></div></div></td>
-            <td><b className={`${styles.role} ${member.role === 'ADMIN' ? styles.admin : styles.staff}`}>{member.role === 'ADMIN' ? tr(locale, 'Quản trị viên', 'Administrator') : tr(locale, 'Cộng tác viên', 'Staff')}</b></td>
+            <td><b className={`${styles.role} ${member.role === 'STAFF' ? styles.staff : styles.admin}`}>{member.role === 'DEV' ? tr(locale, 'Nhà phát triển', 'Developer') : member.role === 'ADMIN' ? tr(locale, 'Quản trị viên khách hàng', 'Customer administrator') : tr(locale, 'Cộng tác viên', 'Staff')}</b></td>
             <td><b className={`${styles.status} ${member.status === 'ACTIVE' ? styles.active : styles.suspended}`}><i/>{member.status === 'ACTIVE' ? tr(locale, 'Hoạt động', 'Active') : tr(locale, 'Đình chỉ', 'Suspended')}</b></td>
             <td><span className={styles.security}><KeyRound size={13}/>{member.hasPassword ? tr(locale, 'Mật khẩu', 'Password') : tr(locale, 'Chưa có mật khẩu', 'No password')}</span></td>
             <td><span className={styles.date}>{member.lastLoginAt ? new Date(member.lastLoginAt).toLocaleString(dateLocale(locale)) : tr(locale, 'Chưa đăng nhập', 'Never')}</span></td>
-            <td><div className={styles.actions}><button onClick={() => openEdit(member)} aria-label={tr(locale, 'Sửa tài khoản', 'Edit account')}><Pencil size={14}/><span>{tr(locale, 'Sửa', 'Edit')}</span></button><button className={styles.delete} onClick={() => void remove(member)} disabled={busy || member.id === currentUserId} title={member.id === currentUserId ? tr(locale, 'Không thể xóa tài khoản đang đăng nhập', 'You cannot delete the current account') : undefined}><Trash2 size={14}/><span>{tr(locale, 'Xóa', 'Delete')}</span></button></div></td>
+            <td><div className={styles.actions}><button onClick={() => openEdit(member)} disabled={member.role === 'DEV'} title={member.role === 'DEV' ? tr(locale, 'Tài khoản DEV được bảo vệ', 'The DEV account is protected') : undefined} aria-label={tr(locale, 'Sửa tài khoản', 'Edit account')}><Pencil size={14}/><span>{tr(locale, 'Sửa', 'Edit')}</span></button><button className={styles.delete} onClick={() => void remove(member)} disabled={busy || member.id === currentUserId || member.role === 'DEV'} title={member.role === 'DEV' ? tr(locale, 'Tài khoản DEV được bảo vệ', 'The DEV account is protected') : member.id === currentUserId ? tr(locale, 'Không thể xóa tài khoản đang đăng nhập', 'You cannot delete the current account') : undefined}><Trash2 size={14}/><span>{tr(locale, 'Xóa', 'Delete')}</span></button></div></td>
           </tr>)}
           {!loading && visibleMembers.length === 0 && <tr><td colSpan={6} className={styles.empty}>{tr(locale, 'Không tìm thấy tài khoản phù hợp.', 'No matching account found.')}</td></tr>}
         </tbody>
@@ -242,7 +244,7 @@ function UserManagement({ currentUserId, onChanged }: { currentUserId: string; o
         <div className={styles.formGrid}>
           <label>{tr(locale, 'Tên hiển thị', 'Display name')}<input value={form.name} onChange={event => setForm(value => ({ ...value, name: event.target.value }))} minLength={2} maxLength={100} required autoFocus/></label>
           <label>{tr(locale, 'Email hoặc tên đăng nhập', 'Email or username')}<input value={form.email} onChange={event => setForm(value => ({ ...value, email: event.target.value }))} minLength={3} maxLength={180} autoComplete="username" required/></label>
-          <label>{tr(locale, 'Vai trò', 'Role')}<select value={form.role} onChange={event => setForm(value => ({ ...value, role: event.target.value as Role }))}><option value="STAFF">{tr(locale, 'Cộng tác viên — chỉ xem', 'Staff — read only')}</option><option value="ADMIN">{tr(locale, 'Quản trị viên — toàn quyền', 'Administrator — full access')}</option></select></label>
+          <label>{tr(locale, 'Vai trò', 'Role')}<select value={form.role} onChange={event => setForm(value => ({ ...value, role: event.target.value as EditableRole }))}><option value="STAFF">{tr(locale, 'Cộng tác viên — chỉ xem MCC được cấp', 'Staff — read assigned MCCs')}</option><option value="ADMIN">{tr(locale, 'Quản trị viên khách hàng — quản lý dữ liệu riêng', 'Customer administrator — own data only')}</option></select></label>
           <label>{tr(locale, 'Trạng thái', 'Status')}<select value={form.status} onChange={event => setForm(value => ({ ...value, status: event.target.value as Status }))}><option value="ACTIVE">{tr(locale, 'Đang hoạt động', 'Active')}</option><option value="SUSPENDED">{tr(locale, 'Đình chỉ truy cập', 'Suspend access')}</option></select></label>
           <label>{editor === 'new' ? tr(locale, 'Mật khẩu', 'Password') : tr(locale, 'Mật khẩu mới (không bắt buộc)', 'New password (optional)')}<input type="password" value={form.password} onChange={event => setForm(value => ({ ...value, password: event.target.value }))} minLength={10} maxLength={128} autoComplete="new-password" required={editor === 'new'} placeholder={tr(locale, 'Ít nhất 10 ký tự, có chữ và số', 'At least 10 characters with letters and numbers')}/></label>
           <label>{tr(locale, 'Xác nhận mật khẩu', 'Confirm password')}<input type="password" value={form.confirmPassword} onChange={event => setForm(value => ({ ...value, confirmPassword: event.target.value }))} minLength={form.password ? 10 : undefined} maxLength={128} autoComplete="new-password" required={editor === 'new' || Boolean(form.password)}/></label>

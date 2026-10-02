@@ -78,7 +78,7 @@ export default async function CampaignsPage({
             )}
           </span>
         </div>
-        {user.role === 'ADMIN' && <CampaignSyncButton />}
+        {user.role !== 'STAFF' && <CampaignSyncButton />}
       </div>
 
       <form className="ga-filters">
@@ -173,7 +173,7 @@ export default async function CampaignsPage({
                       </strong>
                     </td>
                     <td>
-                      {user.role === 'ADMIN' ? (
+                      {user.role !== 'STAFF' ? (
                         <CampaignActions
                           id={campaign.id}
                           status={campaign.status}

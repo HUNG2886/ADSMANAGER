@@ -3,6 +3,7 @@ import { fail, ok, requestIp } from '@/lib/api';
 import { writeAudit } from '@/lib/audit';
 import { formatCustomerId } from '@/lib/google-ads-format';
 import { mapWithConcurrency } from '@/lib/concurrency';
+import { allowedMccIds } from '@/lib/data-access';
 import { PERMISSIONS } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/rbac';
@@ -78,8 +79,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const sourceMccId = url.searchParams.get('sourceMccId')?.trim() ?? '';
   const query = url.searchParams.get('q')?.trim().slice(0, 100) ?? '';
+  const allowed = await allowedMccIds(access.user);
   const mccs = await prisma.mCC.findMany({
-    where: { manager: true, connection: { status: 'CONNECTED' } },
+    where: { manager: true, connection: { status: 'CONNECTED' }, ...(allowed === null ? {} : { id: { in: allowed } }) },
     select: {
       id: true,
       customerId: true,
@@ -114,6 +116,8 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail('INVALID_INPUT', 'MCC nguồn, MCC đích hoặc Customer ID không hợp lệ.', 400);
   if (parsed.data.sourceMccId === parsed.data.targetMccId) return fail('SAME_MCC', 'MCC nguồn và MCC đích phải khác nhau.', 400);
+  const allowed = await allowedMccIds(access.user);
+  if (allowed !== null && (!allowed.includes(parsed.data.sourceMccId) || !allowed.includes(parsed.data.targetMccId))) return fail('FORBIDDEN', 'Bạn không có quyền thao tác với MCC đã chọn.', 403);
   const customerIds = [...new Set(parsed.data.customerIds.map(normalizeCustomerId).filter(id => id.length === 10))];
   if (!customerIds.length) return fail('INVALID_CUSTOMER_IDS', 'Không có Customer ID 10 chữ số hợp lệ.', 400);
 

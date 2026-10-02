@@ -17,11 +17,15 @@ export async function requireRole(...roles: AccessUser['role'][]): Promise<Acces
 }
 
 export function requireAdmin() {
-  return requireRole('ADMIN');
+  return requireRole('DEV','ADMIN');
+}
+
+export function requireDev() {
+  return requireRole('DEV');
 }
 
 export function requireReadAccess() {
-  return requireRole('ADMIN','STAFF');
+  return requireRole('DEV','ADMIN','STAFF');
 }
 
 export async function requirePermission(permission: Permission): Promise<AccessResult> {
@@ -33,5 +37,6 @@ export async function requirePermission(permission: Permission): Promise<AccessR
 export const guards = {
   dashboard: () => requirePermission(PERMISSIONS.VIEW_DASHBOARD),
   admin: requireAdmin,
+  dev: requireDev,
   read: requireReadAccess,
 };

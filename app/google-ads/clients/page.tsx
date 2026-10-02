@@ -15,7 +15,11 @@ export default async function ClientsPage() {
   if (!hasPermission(user.role, PERMISSIONS.VIEW_CLIENTS)) redirect('/403');
   const locale = await getAppLocale();
   const allowed = await allowedMccIds(user);
-  const clientWhere = allowed === null ? {} : { accountAssignments: { some: { customerAccount: { mccId: { in: allowed } } } } };
+  const clientWhere = user.role === 'DEV'
+    ? {}
+    : user.role === 'ADMIN'
+      ? { ownerId: user.id }
+      : { accountAssignments: { some: { customerAccount: { mccId: { in: allowed ?? [] } } } } };
   const [clients, accounts] = await Promise.all([
     prisma.client.findMany({
       where: clientWhere,
