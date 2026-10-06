@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { BarChart3,Building2,ChevronRight,LayoutDashboard,Link2,LogOut,Network,PanelLeft,Rows3,Share2,ShieldCheck,Users,X } from 'lucide-react';
+import { BadgeCheck,BarChart3,Building2,ChevronRight,LayoutDashboard,Link2,LogOut,Network,PanelLeft,Rows3,Share2,ShieldCheck,Users,X } from 'lucide-react';
 import { useState } from 'react';
 import { tr } from '@/lib/i18n';
 import { BrandLogo } from '../brand-logo';
@@ -15,6 +15,7 @@ const links=[
   {href:'/google-ads/mcc',label:'MCC',icon:Network},
   {href:'/google-ads/account-sharing',vi:'Chia sẻ tài khoản',en:'Account sharing',icon:Share2,adminOnly:true},
   {href:'/google-ads/accounts',vi:'Tài khoản',en:'Accounts',icon:Rows3},
+  {href:'/google-ads/verification',vi:'Xác minh',en:'Verification',icon:BadgeCheck,adminOnly:true},
   {href:'/google-ads/campaigns',vi:'Chiến dịch',en:'Campaigns',icon:BarChart3},
   {href:'/google-ads/analytics',vi:'Phân tích',en:'Analytics',icon:BarChart3},
   {href:'/google-ads/clients',vi:'Khách hàng CRM',en:'Clients CRM',icon:Building2},

@@ -148,30 +148,37 @@ model MCC {
 }
 
 model CustomerAccount {
-  id                    String                   @id @default(cuid())
-  mccId                 String
-  mcc                   MCC                      @relation(fields: [mccId], references: [id], onDelete: Cascade)
-  customerId            String
-  parentCustomerId      String?
-  loginCustomerId       String
-  manager               Boolean                  @default(false)
-  level                 Int                      @default(1)
-  testAccount           Boolean                  @default(false)
-  name                  String
-  currency              String?
-  timezone              String?
-  status                AccountStatus            @default(UNKNOWN)
-  mccHasOwnership       Boolean                  @default(false)
-  mccOwnershipCheckedAt DateTime?
-  mccOwnershipErrorCode String?
-  lastSyncAt            DateTime?
-  campaigns             Campaign[]
-  metrics               DailyMetric[]
-  clientAssignment      ClientAccountAssignment?
-  notes                 AccountNote[]
-  syncJobs              SyncJob[]
-  createdAt             DateTime                 @default(now())
-  updatedAt             DateTime                 @updatedAt
+  id                             String                   @id @default(cuid())
+  mccId                          String
+  mcc                            MCC                      @relation(fields: [mccId], references: [id], onDelete: Cascade)
+  customerId                     String
+  parentCustomerId               String?
+  loginCustomerId                String
+  manager                        Boolean                  @default(false)
+  level                          Int                      @default(1)
+  testAccount                    Boolean                  @default(false)
+  name                           String
+  currency                       String?
+  timezone                       String?
+  status                         AccountStatus            @default(UNKNOWN)
+  mccHasOwnership                Boolean                  @default(false)
+  mccOwnershipCheckedAt          DateTime?
+  mccOwnershipErrorCode          String?
+  verificationStatus             String?
+  verificationStartDeadline      String?
+  verificationCompletionDeadline String?
+  verificationCheckedAt          DateTime?
+  verificationErrorCode          String?
+  verificationErrorMessage       String?
+  verificationRequestId          String?
+  lastSyncAt                     DateTime?
+  campaigns                      Campaign[]
+  metrics                        DailyMetric[]
+  clientAssignment               ClientAccountAssignment?
+  notes                          AccountNote[]
+  syncJobs                       SyncJob[]
+  createdAt                      DateTime                 @default(now())
+  updatedAt                      DateTime                 @updatedAt
 
   @@unique([mccId, customerId])
   @@index([mccId])

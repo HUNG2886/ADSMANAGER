@@ -49,7 +49,7 @@ async function main(){
   const staffIdentifier=required('DEFAULT_STAFF_EMAIL');
   const staffPassword=required('DEFAULT_STAFF_PASSWORD');
   if(adminIdentifier.toLowerCase()===staffIdentifier.toLowerCase())throw new Error('DEV and STAFF identifiers must be different.');
-  if(adminPassword.length<8||staffPassword.length<10)throw new Error('Bootstrap passwords do not meet the minimum length requirement.');
+  if(adminPassword.length<6||staffPassword.length<6)throw new Error('Bootstrap passwords do not meet the minimum length requirement.');
 
   const admin=await syncBootstrapUser({identifier:adminIdentifier,password:adminPassword,name:'System Developer',role:Role.DEV});
   const staff=await syncBootstrapUser({identifier:staffIdentifier,password:staffPassword,name:'Default Staff',role:Role.STAFF});

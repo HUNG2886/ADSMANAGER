@@ -37,8 +37,8 @@ describe('DEV user management API',()=>{
 
   it('creates a STAFF account with a password hash',async()=>{
     mocks.findUnique.mockResolvedValue(null);mocks.create.mockResolvedValue(staffRow);
-    const response=await POST(new Request('http://localhost/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Staff',email:'staff@example.com',password:'StaffPass12345',role:'STAFF',status:'ACTIVE'})}));
-    expect(response.status).toBe(201);expect(mocks.hashPassword).toHaveBeenCalledWith('StaffPass12345');expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({role:'STAFF',status:'ACTIVE',passwordHash:'$hash'})}));
+    const response=await POST(new Request('http://localhost/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Staff',email:'staff@example.com',password:'Abc123',role:'STAFF',status:'ACTIVE'})}));
+    expect(response.status).toBe(201);expect(mocks.hashPassword).toHaveBeenCalledWith('Abc123');expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({role:'STAFF',status:'ACTIVE',passwordHash:'$hash'})}));
   });
 
   it('protects the DEV account from page-level edits',async()=>{

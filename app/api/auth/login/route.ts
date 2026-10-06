@@ -7,7 +7,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { writeAudit } from '@/lib/audit';
 
 const identifier=z.string().trim().min(3).max(180).refine(value=>z.string().email().safeParse(value).success||/^[a-zA-Z0-9._-]+$/.test(value));
-const schema = z.object({ email: identifier, password: z.string().min(8).max(128), remember: z.boolean().optional().default(false) });
+const schema = z.object({ email: identifier, password: z.string().min(6).max(128), remember: z.boolean().optional().default(false) });
 
 export async function POST(request: Request) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local';

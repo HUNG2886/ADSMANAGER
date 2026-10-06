@@ -5,7 +5,7 @@ import { hashPassword } from '@/lib/auth';
 import { hasPostgres, prisma } from '@/lib/prisma';
 import { requireDev } from '@/lib/rbac';
 
-const password = z.string().min(10).max(128).regex(/[a-zA-Z]/).regex(/[0-9]/);
+const password = z.string().min(6).max(128).regex(/[a-zA-Z]/).regex(/[0-9]/);
 const identifier = z.string().trim().min(3).max(180).transform(value => value.toLowerCase()).refine(value => z.string().email().safeParse(value).success || /^[a-z0-9._-]+$/.test(value));
 const createSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   if (access.error) return access.error;
   if (!hasPostgres()) return fail('DATABASE_REQUIRED', 'Hãy cấu hình DATABASE_URL để lưu tài khoản.', 503);
   const parsed = createSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return fail('INVALID_ARGUMENT', 'Thông tin tài khoản chưa hợp lệ. Mật khẩu cần ít nhất 10 ký tự, gồm chữ và số.', 422);
+  if (!parsed.success) return fail('INVALID_ARGUMENT', 'Thông tin tài khoản chưa hợp lệ. Mật khẩu cần ít nhất 6 ký tự, gồm chữ và số.', 422);
   if (await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } })) return fail('EMAIL_EXISTS', 'Email hoặc tên đăng nhập này đã tồn tại.', 409);
   const { password: plainPassword, ...data } = parsed.data;
   const user = await prisma.user.create({

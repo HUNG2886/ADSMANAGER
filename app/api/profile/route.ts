@@ -5,7 +5,7 @@ import { writeAudit } from '@/lib/audit';
 import { hasPostgres, prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/rbac';
 
-const passwordSchema=z.object({currentPassword:z.string().min(8).max(128),newPassword:z.string().min(10).max(128).regex(/[a-zA-Z]/).regex(/[0-9]/)});
+const passwordSchema=z.object({currentPassword:z.string().min(6).max(128),newPassword:z.string().min(6).max(128).regex(/[a-zA-Z]/).regex(/[0-9]/)});
 
 export async function GET(){
   const access=await requireAuth();if(access.error)return access.error;
@@ -19,7 +19,7 @@ export async function PATCH(request:Request){
   const access=await requireAuth();if(access.error)return access.error;
   if(!hasPostgres())return fail('DATABASE_REQUIRED','Cần cấu hình DATABASE_URL để đổi mật khẩu.',503);
   const parsed=passwordSchema.safeParse(await request.json().catch(()=>null));
-  if(!parsed.success)return fail('INVALID_ARGUMENT','Mật khẩu mới cần ít nhất 10 ký tự, gồm chữ và số.',422);
+  if(!parsed.success)return fail('INVALID_ARGUMENT','Mật khẩu mới cần ít nhất 6 ký tự, gồm chữ và số.',422);
   const user=await prisma.user.findUnique({where:{id:access.user.id},select:{passwordHash:true}});
   if(!user?.passwordHash||!await verifyPassword(parsed.data.currentPassword,user.passwordHash))return fail('INVALID_PASSWORD','Mật khẩu hiện tại không chính xác.',400);
   await prisma.user.update({where:{id:access.user.id},data:{passwordHash:await hashPassword(parsed.data.newPassword),sessionVersion:{increment:1}}});
