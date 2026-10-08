@@ -214,6 +214,54 @@ describe('Google Ads manager links', () => {
       }],
     });
   });
+
+  it('terminates an active manager link from the client account', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        results: [{ customerClientLink: {
+          resourceName: 'customers/1110000000/customerClientLinks/2220000000~9',
+          clientCustomer: 'customers/2220000000',
+          managerLinkId: '9',
+          status: 'ACTIVE',
+        } }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        results: [{ resourceName: 'customers/2220000000/customerManagerLinks/1110000000~9' }],
+      }), { status: 200 }));
+    const service = new ManagerLinkService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '3330000000' }));
+
+    await expect(service.terminateActiveLink('111-000-0000', '222-000-0000')).resolves.toMatchObject({
+      managerLinkId: '9',
+      status: 'ACTIVE',
+      customerManagerLinkResourceName: 'customers/2220000000/customerManagerLinks/1110000000~9',
+    });
+    expect(fetchMock.mock.calls[1][0]).toContain('/customers/2220000000/customerManagerLinks:mutate');
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({
+      operations: [{
+        update: {
+          resourceName: 'customers/2220000000/customerManagerLinks/1110000000~9',
+          status: 'INACTIVE',
+        },
+        updateMask: 'status',
+      }],
+    });
+  });
+
+  it('does not mutate when no active manager link exists', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      results: [{ customerClientLink: {
+        resourceName: 'customers/1110000000/customerClientLinks/2220000000~9',
+        clientCustomer: 'customers/2220000000',
+        managerLinkId: '9',
+        status: 'INACTIVE',
+      } }],
+    }), { status: 200 }));
+    const service = new ManagerLinkService(new GoogleAdsClient({ accessToken: 'access', developerToken: 'developer', loginCustomerId: '3330000000' }));
+
+    await expect(service.terminateActiveLink('111-000-0000', '222-000-0000')).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('Google OAuth configuration',()=>{

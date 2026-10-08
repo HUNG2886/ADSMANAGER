@@ -21,6 +21,10 @@ export type ManagerLinkSnapshot = {
   status: ManagerLinkStatus;
 };
 
+export type TerminatedManagerLink = ManagerLinkSnapshot & {
+  customerManagerLinkResourceName: string;
+};
+
 function managerLinkIdFromResource(resourceName: string) {
   const separator = resourceName.lastIndexOf('~');
   return separator >= 0 ? resourceName.slice(separator + 1) : '';
@@ -95,5 +99,28 @@ export class ManagerLinkService {
         }],
       }),
     });
+  }
+
+  async terminateActiveLink(managerCustomerId: string, clientCustomerId: string): Promise<TerminatedManagerLink | null> {
+    const managerId = normalizeCustomerId(managerCustomerId);
+    const clientId = normalizeCustomerId(clientCustomerId);
+    const activeLink = (await this.list(managerId, clientId)).find(link => link.status === 'ACTIVE');
+    if (!activeLink) return null;
+
+    const customerManagerLinkResourceName = `customers/${clientId}/customerManagerLinks/${managerId}~${activeLink.managerLinkId}`;
+    await this.client.request<MutateManagerLinkResponse>(`/customers/${clientId}/customerManagerLinks:mutate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        operations: [{
+          update: {
+            resourceName: customerManagerLinkResourceName,
+            status: 'INACTIVE',
+          },
+          updateMask: 'status',
+        }],
+      }),
+    });
+
+    return { ...activeLink, customerManagerLinkResourceName };
   }
 }
